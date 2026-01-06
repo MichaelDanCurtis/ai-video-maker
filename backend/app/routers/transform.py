@@ -17,6 +17,7 @@ from app.models.schemas import (
     ErrorResponse,
     JobStatus,
     PhotoEditResponse,
+    PhotoToVideoResponse,
 )
 from app.services.openrouter import (
     OpenRouterAuthError,
@@ -38,6 +39,10 @@ ALLOWED_IMAGE_TYPES = {
 
 # Maximum file size (10MB)
 MAX_FILE_SIZE = 10 * 1024 * 1024
+
+# Flag indicating photo-to-video transformation availability on OpenRouter
+# This is set to False since photo-to-video via OpenRouter is unverified
+PHOTO_TO_VIDEO_AVAILABLE = False
 
 
 def _generate_job_id(prefix: str = "edit") -> str:
@@ -246,6 +251,157 @@ async def edit_photo(
             original_filename=file.filename,
             model=model_to_use,
             edit_prompt=edit_prompt,
+            created_at=datetime.utcnow(),
+            error=str(e),
+        )
+
+    except Exception as e:
+        # Unexpected errors
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "internal_error",
+                "message": f"An unexpected error occurred: {str(e)}",
+            },
+        )
+
+
+@router.post(
+    "/photo-to-video",
+    response_model=PhotoToVideoResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid request or file"},
+        401: {"model": ErrorResponse, "description": "API key not configured or invalid"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def photo_to_video(
+    file: UploadFile = File(..., description="Image file to transform into video"),
+    motion_prompt: Optional[str] = Form(default=None, max_length=1000, description="Description of desired motion/animation"),
+    model: Optional[str] = Form(default=None, description="AI model to use for transformation"),
+    duration: int = Form(default=3, ge=1, le=10, description="Output video duration in seconds (1-10)"),
+    motion_strength: float = Form(default=0.5, ge=0.0, le=1.0, description="Amount of motion to apply (0.0-1.0)"),
+    loop: bool = Form(default=False, description="Whether the video should loop seamlessly"),
+    fps: int = Form(default=24, ge=12, le=30, description="Output frames per second (12-30)"),
+) -> PhotoToVideoResponse:
+    """
+    Transform a static photo into an animated video.
+
+    This endpoint accepts an image file and animation parameters, then uses AI
+    to create a video with motion effects. The motion prompt can describe the
+    type of animation desired (e.g., "wind blowing through trees").
+
+    Note: Photo-to-video transformation capability is currently UNVERIFIED on OpenRouter.
+    If transformation models are unavailable, a response with an error message
+    will be returned instead of actual video content.
+
+    Args:
+        file: The image file to transform (JPEG, PNG, WebP, or GIF).
+        motion_prompt: Optional description of desired motion/animation.
+        model: AI model to use (defaults to server default).
+        duration: Output video duration in seconds (1-10).
+        motion_strength: Amount of motion from 0.0 (subtle) to 1.0 (dramatic).
+        loop: Whether the video should loop seamlessly.
+        fps: Output frames per second (12-30).
+
+    Returns:
+        PhotoToVideoResponse with the generated video URL or error message.
+
+    Raises:
+        HTTPException: On validation errors, authentication failures, or API errors.
+    """
+    settings = get_settings()
+    job_id = _generate_job_id("p2v")
+
+    # Validate the uploaded file
+    _validate_image_file(file)
+
+    # Read and validate file size
+    file_content = await _read_and_validate_file_size(file)
+
+    # Use default model if not specified
+    model_to_use = model or settings.default_video_model
+
+    # Check if photo-to-video transformation is available
+    if not PHOTO_TO_VIDEO_AVAILABLE:
+        return PhotoToVideoResponse(
+            job_id=job_id,
+            status=JobStatus.FAILED,
+            original_filename=file.filename,
+            model=model_to_use,
+            duration=duration,
+            created_at=datetime.utcnow(),
+            error=(
+                "Photo-to-video transformation is not currently available. "
+                "The photo-to-video models on OpenRouter have not been verified. "
+                "Please check back later or use the video generation endpoint instead."
+            ),
+        )
+
+    try:
+        async with get_openrouter_client_async() as client:
+            # Convert image to base64 for API request
+            image_base64 = base64.b64encode(file_content).decode("utf-8")
+
+            # Attempt to call photo-to-video transformation API
+            # Note: This code path may not work as photo-to-video on OpenRouter
+            # is unverified. Keeping the implementation for future compatibility.
+            result = await client.generate_video_async(
+                prompt=motion_prompt or "Subtle natural motion and movement",
+                model=model_to_use,
+                duration=duration,
+                fps=fps,
+                resolution="720p",
+                image_base64=image_base64,
+            )
+
+            # Extract video data from response
+            video_url = None
+            thumbnail_url = None
+
+            if "data" in result and len(result["data"]) > 0:
+                video_data = result["data"][0]
+                video_url = video_data.get("url")
+                thumbnail_url = video_data.get("thumbnail_url")
+
+            return PhotoToVideoResponse(
+                job_id=job_id,
+                status=JobStatus.COMPLETED,
+                original_filename=file.filename,
+                video_url=video_url,
+                thumbnail_url=thumbnail_url,
+                model=model_to_use,
+                duration=duration,
+                created_at=datetime.utcnow(),
+            )
+
+    except OpenRouterAuthError as e:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "authentication_error",
+                "message": str(e),
+            },
+        )
+
+    except OpenRouterRateLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "rate_limit_exceeded",
+                "message": str(e),
+            },
+        )
+
+    except OpenRouterAPIError as e:
+        # Return a failed response for API errors instead of raising
+        return PhotoToVideoResponse(
+            job_id=job_id,
+            status=JobStatus.FAILED,
+            original_filename=file.filename,
+            model=model_to_use,
+            duration=duration,
             created_at=datetime.utcnow(),
             error=str(e),
         )
