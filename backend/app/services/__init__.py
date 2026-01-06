@@ -11,16 +11,42 @@ from app.services.openrouter import (
     get_openrouter_client,
     get_openrouter_client_async,
 )
+from app.services.workflow import (
+    WorkflowService,
+    WorkflowError,
+    WorkflowConnectionError,
+    WorkflowExecutionError,
+    WorkflowValidationError,
+    WorkflowStep,
+    WorkflowStepStatus,
+    Workflow,
+    WorkflowStatus,
+    get_workflow_service,
+)
 
 __all__ = [
-    # Client class
+    # OpenRouter Client
     "OpenRouterClient",
-    # Exceptions
+    # OpenRouter Exceptions
     "OpenRouterError",
     "OpenRouterAuthError",
     "OpenRouterRateLimitError",
     "OpenRouterAPIError",
-    # Factory functions
+    # OpenRouter Factory functions
     "get_openrouter_client",
     "get_openrouter_client_async",
+    # Workflow Service
+    "WorkflowService",
+    # Workflow Exceptions
+    "WorkflowError",
+    "WorkflowConnectionError",
+    "WorkflowExecutionError",
+    "WorkflowValidationError",
+    # Workflow Data Classes
+    "WorkflowStep",
+    "WorkflowStepStatus",
+    "Workflow",
+    "WorkflowStatus",
+    # Workflow Factory functions
+    "get_workflow_service",
 ]
