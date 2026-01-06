@@ -1,0 +1,11 @@
+"""
+Routers module containing API endpoint definitions.
+
+Each router handles a specific domain of the API (health, photo, video, etc.).
+"""
+
+from app.routers.health import router as health_router
+
+__all__ = [
+    "health_router",
+]
