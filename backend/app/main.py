@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import health_router, photo_router, transform_router
+from app.routers import health_router, photo_router, transform_router, video_router
 
 # Load settings
 settings = get_settings()
@@ -36,6 +36,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(photo_router)
 app.include_router(transform_router)
+app.include_router(video_router)
 
 
 @app.get("/")
