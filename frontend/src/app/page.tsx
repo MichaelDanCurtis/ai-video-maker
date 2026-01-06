@@ -1,6 +1,7 @@
 import { PhotoCreator } from '@/components/PhotoCreator';
 import { PhotoEditor } from '@/components/PhotoEditor';
 import { VideoCreator } from '@/components/VideoCreator';
+import { PhotoToVideo } from '@/components/PhotoToVideo';
 
 export default function Home() {
   return (
@@ -64,6 +65,11 @@ export default function Home() {
         {/* Video Creator Section */}
         <section className="mb-12">
           <VideoCreator />
+        </section>
+
+        {/* Photo to Video Section */}
+        <section className="mb-12">
+          <PhotoToVideo />
         </section>
 
         {/* Footer note */}
