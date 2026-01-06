@@ -1,4 +1,5 @@
 import { PhotoCreator } from '@/components/PhotoCreator';
+import { PhotoEditor } from '@/components/PhotoEditor';
 
 export default function Home() {
   return (
@@ -52,6 +53,11 @@ export default function Home() {
         {/* Photo Creator Section */}
         <section className="mb-12">
           <PhotoCreator />
+        </section>
+
+        {/* Photo Editor Section */}
+        <section className="mb-12">
+          <PhotoEditor />
         </section>
 
         {/* Footer note */}
