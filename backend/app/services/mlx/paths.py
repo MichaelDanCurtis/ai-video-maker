@@ -66,3 +66,53 @@ def media_url_for(path: Path) -> str:
 def resolve_video_model_dir(model_entry: dict) -> Path:
     name = model_entry.get("model_dir_name") or model_entry.get("id", "wan_model")
     return models_dir() / name
+
+
+def resolve_image_model_dir(model_entry: dict) -> Path:
+    """Local weights directory for an image model (matches download_models.sh layout)."""
+    name = model_entry.get("local_dir") or model_entry.get("id", "flux_model")
+    return models_dir() / name
+
+
+def _mflux_bundle_ready(path: Path) -> bool:
+    """True when an mflux-native bundle has core component dirs with weights."""
+    if not path.is_dir():
+        return False
+    if list(path.rglob("*.incomplete")):
+        return False
+    for component in ("vae", "transformer"):
+        component_dir = path / component
+        if not component_dir.is_dir():
+            return False
+        if not list(component_dir.glob("*.safetensors")) and not list(
+            component_dir.rglob("*.safetensors")
+        ):
+            return False
+    return True
+
+
+def _has_complete_weights(path: Path) -> bool:
+    """True when weights exist locally (mflux bundle or mlx-video tree)."""
+    if _mflux_bundle_ready(path):
+        return True
+    if not path.is_dir():
+        return False
+    safetensors = list(path.rglob("*.safetensors"))
+    if not safetensors:
+        return False
+    return len(list(path.rglob("*.incomplete"))) == 0
+
+
+def resolve_image_model_path(model_entry: dict) -> str:
+    """Prefer on-disk mflux bundle; fall back to HuggingFace repo id."""
+    local = resolve_image_model_dir(model_entry)
+    if _mflux_bundle_ready(local):
+        return str(local)
+    return model_entry.get("huggingface_model") or model_entry.get("model_path") or str(local)
+
+
+def model_weights_ready(model_entry: dict, *, kind: str = "image") -> bool:
+    if kind == "image":
+        return _has_complete_weights(resolve_image_model_dir(model_entry))
+    video_dir = resolve_video_model_dir(model_entry)
+    return _has_complete_weights(video_dir)

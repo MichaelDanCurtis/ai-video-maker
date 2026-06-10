@@ -15,39 +15,46 @@ HF_HOME="${HF_HOME:-${HOME}/.cache/huggingface}"
 export HF_HOME
 mkdir -p "${WEIGHTS}" "${HF_HOME}"
 
-PYTHON="${MLX_PYTHON:-}"
-if [[ -z "${PYTHON}" ]]; then
-  PYTHON="$(command -v python3.12 || command -v python3.11 || command -v python3)"
-fi
-
 HF_CLI="${VENV}/bin/hf"
 if [[ ! -x "${HF_CLI}" ]]; then
   HF_CLI="$(command -v hf || true)"
 fi
 if [[ -z "${HF_CLI}" ]]; then
   echo "Installing huggingface_hub CLI (hf)..."
-  "${PYTHON}" -m pip install -q "huggingface_hub[cli]"
+  "${MLX_PYTHON:-python3}" -m pip install -q "huggingface_hub[cli]"
   HF_CLI="${VENV}/bin/hf"
 fi
 
 echo "==> Downloading MLX model weights"
 echo "    HF_HOME=${HF_HOME}"
 echo "    WEIGHTS=${WEIGHTS}"
-echo "    Python=${PYTHON}"
 
-# Uncensored Flux Dev Q4 — default image model (downloads on first mflux run too)
-echo "==> Image: shauray/flux.1-dev-uncensored-q4"
-"${HF_CLI}" download shauray/flux.1-dev-uncensored-q4 --local-dir "${WEIGHTS}/flux-dev-uncensored-q4" || true
+# Default uncensored image: Krea Dev mflux 4-bit (native mflux bundle)
+echo "==> Image (uncensored default): filipstrand/FLUX.1-Krea-dev-mflux-4bit"
+"${HF_CLI}" download filipstrand/FLUX.1-Krea-dev-mflux-4bit \
+  --local-dir "${WEIGHTS}/flux-krea-uncensored-q4" || true
+
+# Fast Flux Schnell
+echo "==> Image (fast): dhairyashil/FLUX.1-schnell-mflux-4bit"
+"${HF_CLI}" download dhairyashil/FLUX.1-schnell-mflux-4bit \
+  --local-dir "${WEIGHTS}/flux-schnell-q4" || true
+
+# Full Flux Dev
+echo "==> Image (quality): dhairyashil/FLUX.1-dev-mflux-4bit"
+"${HF_CLI}" download dhairyashil/FLUX.1-dev-mflux-4bit \
+  --local-dir "${WEIGHTS}/flux-dev-q4" || true
 
 # Wan 2.2 I2V MLX weights
 echo "==> Video I2V: prince-canuma/Wan2.2-I2V-A14B-MLX"
-"${HF_CLI}" download prince-canuma/Wan2.2-I2V-A14B-MLX --local-dir "${WEIGHTS}/wan22_i2v_mlx"
+"${HF_CLI}" download prince-canuma/Wan2.2-I2V-A14B-MLX \
+  --local-dir "${WEIGHTS}/wan22_i2v_mlx"
 
 # Wan 2.2 T2V MLX weights (text-to-video pipeline)
 echo "==> Video T2V: prince-canuma/Wan2.2-T2V-A14B-MLX"
-"${HF_CLI}" download prince-canuma/Wan2.2-T2V-A14B-MLX --local-dir "${WEIGHTS}/wan22_t2v_mlx"
+"${HF_CLI}" download prince-canuma/Wan2.2-T2V-A14B-MLX \
+  --local-dir "${WEIGHTS}/wan22_t2v_mlx"
 
-# Lightning LoRA for 4-step generation (optional but recommended)
+# Lightning LoRA for 4-step video generation (optional but recommended)
 echo "==> Lightning LoRA: lightx2v/Wan2.2-Lightning"
 "${HF_CLI}" download lightx2v/Wan2.2-Lightning \
   --include "Wan2.2-T2V-A14B-4steps-lora-rank64-Seko-V2.0/*" \
@@ -56,11 +63,13 @@ echo "==> Lightning LoRA: lightx2v/Wan2.2-Lightning"
 cat <<EOF
 
 Done. Model directories:
-  ${WEIGHTS}/flux-dev-uncensored-q4
+  ${WEIGHTS}/flux-krea-uncensored-q4   (default uncensored image)
+  ${WEIGHTS}/flux-schnell-q4
+  ${WEIGHTS}/flux-dev-q4
   ${WEIGHTS}/wan22_i2v_mlx
   ${WEIGHTS}/wan22_t2v_mlx
   ${WEIGHTS}/lightning_lora (optional)
 
-Default uncensored image model: flux-dev-uncensored-q4
+Default uncensored image model: flux-krea-uncensored-q4
 Default video model: wan22-i2v-lightning
 EOF

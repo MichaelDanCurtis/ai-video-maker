@@ -4,18 +4,24 @@ from fastapi import APIRouter
 
 from app.config import get_settings
 from app.models.schemas import MediaType, ModelInfo, ModelListResponse
+from app.services.mlx.paths import model_weights_ready
 from app.services.mlx.registry import get_registry
 
 router = APIRouter(prefix="/api/v1/models", tags=["models"])
 
 
-def _to_model_info(entry: dict) -> ModelInfo:
+def _to_model_info(entry: dict, *, kind: str) -> ModelInfo:
+    caps = list(entry.get("capabilities", []))
+    if entry.get("uncensored") and "uncensored" not in caps:
+        caps.append("uncensored")
     return ModelInfo(
         id=entry["id"],
         name=entry["name"],
         provider=entry.get("provider", "local-mlx"),
         description=entry.get("description"),
-        capabilities=entry.get("capabilities", []),
+        capabilities=caps,
+        uncensored=bool(entry.get("uncensored")),
+        ready=model_weights_ready(entry, kind=kind),
     )
 
 
@@ -27,7 +33,7 @@ async def list_image_models() -> ModelListResponse:
     if settings.inference_backend != "mlx":
         return ModelListResponse(models=[], media_type=MediaType.IMAGE)
     return ModelListResponse(
-        models=[_to_model_info(m) for m in models],
+        models=[_to_model_info(m, kind="image") for m in models],
         media_type=MediaType.IMAGE,
     )
 
@@ -40,7 +46,7 @@ async def list_video_models() -> ModelListResponse:
     if settings.inference_backend != "mlx":
         return ModelListResponse(models=[], media_type=MediaType.VIDEO)
     return ModelListResponse(
-        models=[_to_model_info(m) for m in models],
+        models=[_to_model_info(m, kind="video") for m in models],
         media_type=MediaType.VIDEO,
     )
 

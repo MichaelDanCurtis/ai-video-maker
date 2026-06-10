@@ -33,6 +33,8 @@ export interface ModelInfo {
   provider: string;
   description?: string;
   capabilities: string[];
+  uncensored?: boolean;
+  ready?: boolean;
 }
 
 export interface ModelListResponse {

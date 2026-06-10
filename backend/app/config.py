@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     mlx_job_timeout_seconds: int = 3600
 
     # Default AI Models (registry IDs when using mlx, OpenRouter slugs when cloud)
-    default_image_model: str = "flux-dev-uncensored-q4"
+    default_image_model: str = "flux-krea-uncensored-q4"
     default_video_model: str = "wan22-i2v-lightning"
 
     # CORS Configuration

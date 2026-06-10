@@ -18,7 +18,7 @@ interface PhotoCreatorProps {
 export function PhotoCreator({ onGenerate }: PhotoCreatorProps) {
   const { models, loading: modelsLoading } = useImageModels(DEFAULT_IMAGE_MODELS);
   const [prompt, setPrompt] = useState('');
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_IMAGE_MODELS[0]?.id || 'flux-dev-uncensored-q4');
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_IMAGE_MODELS[0]?.id || 'flux-krea-uncensored-q4');
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressMessage, setProgressMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

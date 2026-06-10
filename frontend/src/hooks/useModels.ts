@@ -8,10 +8,12 @@ import type { ModelOption } from '@/components/ui/ModelSelector';
 function toOptions(models: ModelInfo[]): ModelOption[] {
   return models.map((m) => ({
     id: m.id,
-    name: m.name,
+    name: m.ready === false ? `${m.name} (downloading…)` : m.name,
     description: m.description,
     provider: m.provider,
     capabilities: m.capabilities,
+    uncensored: m.uncensored,
+    ready: m.ready,
   }));
 }
 

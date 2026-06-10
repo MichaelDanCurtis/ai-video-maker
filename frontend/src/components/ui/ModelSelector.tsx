@@ -8,6 +8,8 @@ export interface ModelOption {
   description?: string;
   provider?: string;
   capabilities?: string[];
+  uncensored?: boolean;
+  ready?: boolean;
 }
 
 interface ModelSelectorProps {
@@ -207,11 +209,23 @@ export function ModelSelector({
                         >
                           {model.name}
                         </span>
-                        {model.provider && (
-                          <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                            {model.provider}
-                          </span>
-                        )}
+                        <div className="ml-2 flex items-center gap-1">
+                          {model.uncensored && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200">
+                              uncensored
+                            </span>
+                          )}
+                          {model.ready === false && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                              downloading
+                            </span>
+                          )}
+                          {model.provider && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {model.provider}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {model.description && (
                         <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -257,15 +271,24 @@ export function ModelSelector({
 // Fallback until /api/v1/models loads from the MLX registry
 export const DEFAULT_IMAGE_MODELS: ModelOption[] = [
   {
-    id: 'flux-dev-uncensored-q4',
-    name: 'Flux Dev Uncensored (Q4)',
-    description: 'Community uncensored Flux Dev — default local MLX model',
+    id: 'flux-krea-uncensored-q4',
+    name: 'Flux Krea Dev Uncensored (Q4)',
+    description: 'Krea-tuned Flux — default uncensored local MLX model',
     provider: 'local-mlx',
     capabilities: ['text-to-image', 'uncensored'],
+    uncensored: true,
   },
   {
-    id: 'flux-schnell-q8',
-    name: 'Flux Schnell (Fast)',
+    id: 'flux-dev-q4',
+    name: 'Flux Dev (Q4)',
+    description: 'Full quality Flux Dev mflux 4-bit',
+    provider: 'local-mlx',
+    capabilities: ['text-to-image', 'uncensored'],
+    uncensored: true,
+  },
+  {
+    id: 'flux-schnell-q4',
+    name: 'Flux Schnell Fast (Q4)',
     description: 'Fast distilled Flux for drafts',
     provider: 'local-mlx',
     capabilities: ['text-to-image'],

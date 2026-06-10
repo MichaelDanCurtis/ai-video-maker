@@ -61,6 +61,8 @@ class ModelInfo(BaseModel):
     provider: str = Field(description="Model provider (e.g., 'openai')")
     description: Optional[str] = Field(default=None, description="Model description")
     capabilities: list[str] = Field(default_factory=list, description="Model capabilities")
+    uncensored: bool = Field(default=False, description="Whether the model has reduced safety filtering")
+    ready: Optional[bool] = Field(default=None, description="Whether local weights are downloaded and ready")
 
 
 class ModelListResponse(BaseModel):

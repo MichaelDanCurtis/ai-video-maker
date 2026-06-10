@@ -45,3 +45,8 @@ class ModelRegistry:
 def get_registry() -> ModelRegistry:
     with _REGISTRY_PATH.open(encoding="utf-8") as handle:
         return ModelRegistry(json.load(handle))
+
+
+def reload_registry() -> ModelRegistry:
+    get_registry.cache_clear()
+    return get_registry()

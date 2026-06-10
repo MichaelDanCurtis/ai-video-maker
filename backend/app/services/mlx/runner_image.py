@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from app.config import get_settings
-from app.services.mlx.paths import job_output_dir
+from app.services.mlx.paths import job_output_dir, resolve_image_model_path
 
 
 class ImageRunnerError(Exception):
@@ -68,7 +68,7 @@ def build_image_command(
     )
     steps = int(model.get("steps", 20))
     quantize = int(model.get("quantize", 8))
-    hf_model = model.get("huggingface_model") or model.get("model_path")
+    hf_model = resolve_image_model_path(model)
 
     if engine == "mflux-z-image":
         cmd = [
@@ -111,6 +111,13 @@ def build_image_command(
         guidance = model.get("guidance")
         if guidance is not None:
             cmd.extend(["--guidance", str(guidance)])
+
+    lora_paths = model.get("lora_paths") or []
+    lora_scales = model.get("lora_scales") or []
+    if lora_paths:
+        cmd.extend(["--lora-paths", *[str(p) for p in lora_paths]])
+        if lora_scales:
+            cmd.extend(["--lora-scales", *[str(s) for s in lora_scales]])
 
     if seed is not None:
         cmd.extend(["--seed", str(seed)])
