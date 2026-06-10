@@ -27,6 +27,7 @@ pip install fastapi uvicorn pydantic pydantic-settings python-multipart httpx py
 # MLX inference stack
 pip install mflux
 pip install "git+https://github.com/Blaizzy/mlx-video.git"
+pip install torch
 
 # Optional: faster HF downloads
 pip install hf_transfer || true

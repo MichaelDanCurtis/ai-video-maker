@@ -111,8 +111,21 @@ def resolve_image_model_path(model_entry: dict) -> str:
     return model_entry.get("huggingface_model") or model_entry.get("model_path") or str(local)
 
 
+def _wan_mlx_ready(path: Path) -> bool:
+    return (
+        path.is_dir()
+        and (path / "config.json").is_file()
+        and (path / "t5_encoder.safetensors").is_file()
+        and not list(path.rglob("*.incomplete"))
+    )
+
+
 def model_weights_ready(model_entry: dict, *, kind: str = "image") -> bool:
     if kind == "image":
-        return _has_complete_weights(resolve_image_model_dir(model_entry))
+        return _mflux_bundle_ready(resolve_image_model_dir(model_entry))
+    engine = model_entry.get("engine", "")
+    if engine == "mlx-video-ltx2":
+        local = models_dir() / (model_entry.get("local_dir") or "ltx2-distilled")
+        return local.is_dir() and (local / "config.json").is_file()
     video_dir = resolve_video_model_dir(model_entry)
-    return _has_complete_weights(video_dir)
+    return _wan_mlx_ready(video_dir)

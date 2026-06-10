@@ -27,6 +27,14 @@ def _mlx_python() -> str:
     )
 
 
+def _resolve_ltx_model_repo(model: dict[str, Any]) -> str:
+    local_name = model.get("local_dir") or "ltx2-distilled"
+    local = models_dir() / local_name
+    if local.is_dir() and (local / "config.json").is_file():
+        return str(local)
+    return str(model.get("model_repo", "prince-canuma/LTX-2-distilled"))
+
+
 def _lightning_lora_paths() -> tuple[Optional[Path], Optional[Path]]:
     """Return high/low Lightning LoRA paths if present under models dir."""
     base = models_dir() / "lightning_lora"
@@ -124,7 +132,7 @@ def build_ltx_command(
         "--output",
         str(output_path),
         "--model-repo",
-        str(model.get("model_repo", "prince-canuma/LTX-2-distilled")),
+        _resolve_ltx_model_repo(model),
         "--pipeline",
         str(model.get("pipeline", "distilled")),
     ]
