@@ -20,14 +20,14 @@ if [[ -z "${PYTHON}" ]]; then
   PYTHON="$(command -v python3.12 || command -v python3.11 || command -v python3)"
 fi
 
-HF_CLI="${VENV}/bin/huggingface-cli"
+HF_CLI="${VENV}/bin/hf"
 if [[ ! -x "${HF_CLI}" ]]; then
-  HF_CLI="$(command -v huggingface-cli || true)"
+  HF_CLI="$(command -v hf || true)"
 fi
 if [[ -z "${HF_CLI}" ]]; then
-  echo "Installing huggingface_hub CLI..."
+  echo "Installing huggingface_hub CLI (hf)..."
   "${PYTHON}" -m pip install -q "huggingface_hub[cli]"
-  HF_CLI="${VENV}/bin/huggingface-cli"
+  HF_CLI="${VENV}/bin/hf"
 fi
 
 echo "==> Downloading MLX model weights"
