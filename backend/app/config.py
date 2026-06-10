@@ -5,7 +5,14 @@ Loads configuration from environment variables with sensible defaults.
 """
 
 from functools import lru_cache
-from pydantic_settings import BaseSettings
+from pathlib import Path
+from typing import Annotated, Any
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
@@ -25,21 +32,38 @@ class Settings(BaseSettings):
     default_video_model: str = "stabilityai/stable-video-diffusion"
 
     # CORS Configuration
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
     # File Upload Configuration
     max_upload_size_mb: int = 50
-    allowed_image_types: list[str] = ["image/jpeg", "image/png", "image/webp", "image/gif"]
-    allowed_video_types: list[str] = ["video/mp4", "video/webm", "video/quicktime"]
+    allowed_image_types: Annotated[list[str], NoDecode] = [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+    ]
+    allowed_video_types: Annotated[list[str], NoDecode] = [
+        "video/mp4",
+        "video/webm",
+        "video/quicktime",
+    ]
 
     # LangFlow Configuration (optional)
     langflow_enabled: bool = False
     langflow_base_url: str = "http://localhost:7860"
 
+    @field_validator("cors_origins", "allowed_image_types", "allowed_video_types", mode="before")
+    @classmethod
+    def parse_comma_separated_list(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
     class Config:
-        env_file = ".env"
+        env_file = (_PROJECT_ROOT / ".env", _BACKEND_ROOT / ".env")
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "ignore"
 
 
 @lru_cache()
