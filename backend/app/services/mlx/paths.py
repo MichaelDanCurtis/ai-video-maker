@@ -126,6 +126,6 @@ def model_weights_ready(model_entry: dict, *, kind: str = "image") -> bool:
     engine = model_entry.get("engine", "")
     if engine == "mlx-video-ltx2":
         local = models_dir() / (model_entry.get("local_dir") or "ltx2-distilled")
-        return local.is_dir() and (local / "config.json").is_file()
+        return _mflux_bundle_ready(local)
     video_dir = resolve_video_model_dir(model_entry)
     return _wan_mlx_ready(video_dir)
