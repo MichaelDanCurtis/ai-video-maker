@@ -16,8 +16,15 @@ from app.models.schemas import (
     PhotoGenerationRequest,
     PhotoGenerationResponse,
 )
+from app.services.mlx.helpers import (
+    get_job_or_404,
+    photo_response_from_job,
+    resolve_image_model_id,
+    use_mlx,
+)
+from app.services.mlx.jobs import JobKind
+from app.services.mlx.worker import enqueue_job, get_job_store
 from app.services.openrouter import (
-    OpenRouterClient,
     OpenRouterAuthError,
     OpenRouterRateLimitError,
     OpenRouterAPIError,
@@ -29,7 +36,7 @@ router = APIRouter(prefix="/api/v1/photo", tags=["photo"])
 
 def _generate_job_id() -> str:
     """Generate a unique job ID for photo generation."""
-    return f"photo_{uuid.uuid4().hex[:12]}"
+    return f"job_{uuid.uuid4().hex[:12]}"
 
 
 @router.post(
@@ -46,28 +53,28 @@ async def generate_photo(request: PhotoGenerationRequest) -> PhotoGenerationResp
     """
     Generate a photo from a text prompt using AI.
 
-    This endpoint uses OpenRouter's image generation models to create images
-    from text descriptions. The generation may take several seconds depending
-    on the model and parameters.
-
-    Args:
-        request: Photo generation request containing the prompt and options.
-
-    Returns:
-        PhotoGenerationResponse with the generated image URL or base64 data.
-
-    Raises:
-        HTTPException: On validation errors, authentication failures, or API errors.
+    When inference_backend=mlx, enqueues a local generation job and returns
+    status=pending — poll GET /api/v1/photo/status/{job_id} for completion.
     """
     settings = get_settings()
-    job_id = _generate_job_id()
+    model = resolve_image_model_id(request.model)
 
-    # Use default model if not specified
-    model = request.model or settings.default_image_model
+    if use_mlx():
+        job_id = _generate_job_id()
+        job = get_job_store().create(
+            kind=JobKind.IMAGE,
+            model_id=model,
+            prompt=request.prompt,
+            metadata={"size": request.size, "quality": request.quality, "style": request.style},
+            job_id=job_id,
+        )
+        await enqueue_job(job)
+        return photo_response_from_job(job)
+
+    job_id = f"photo_{uuid.uuid4().hex[:12]}"
 
     try:
         async with get_openrouter_client_async() as client:
-            # Call OpenRouter API to generate image
             result = await client.generate_image_async(
                 prompt=request.prompt,
                 model=model,
@@ -77,8 +84,6 @@ async def generate_photo(request: PhotoGenerationRequest) -> PhotoGenerationResp
                 n=request.n,
             )
 
-            # Extract image data from response
-            # OpenRouter returns images in data array with url or b64_json
             image_url = None
             image_base64 = None
 
@@ -116,7 +121,6 @@ async def generate_photo(request: PhotoGenerationRequest) -> PhotoGenerationResp
         )
 
     except OpenRouterAPIError as e:
-        # Return a failed response for API errors instead of raising
         return PhotoGenerationResponse(
             job_id=job_id,
             status=JobStatus.FAILED,
@@ -127,7 +131,6 @@ async def generate_photo(request: PhotoGenerationRequest) -> PhotoGenerationResp
         )
 
     except Exception as e:
-        # Unexpected errors
         raise HTTPException(
             status_code=500,
             detail={
@@ -135,3 +138,10 @@ async def generate_photo(request: PhotoGenerationRequest) -> PhotoGenerationResp
                 "message": f"An unexpected error occurred: {str(e)}",
             },
         )
+
+
+@router.get("/status/{job_id}", response_model=PhotoGenerationResponse)
+async def photo_job_status(job_id: str) -> PhotoGenerationResponse:
+    """Poll MLX photo generation job status."""
+    job = get_job_or_404(job_id)
+    return photo_response_from_job(job)

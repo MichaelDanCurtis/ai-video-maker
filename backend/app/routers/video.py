@@ -2,7 +2,6 @@
 Video generation API router.
 
 Provides endpoints for generating videos from text prompts using AI models.
-Note: Video generation capability on OpenRouter is UNVERIFIED and may not be available.
 """
 
 import uuid
@@ -17,8 +16,16 @@ from app.models.schemas import (
     VideoGenerationRequest,
     VideoGenerationResponse,
 )
+from app.services.mlx.helpers import (
+    get_job_or_404,
+    resolve_video_model_id,
+    use_mlx,
+    video_response_from_job,
+)
+from app.services.mlx.jobs import JobKind
+from app.services.mlx.registry import get_registry
+from app.services.mlx.worker import enqueue_job, get_job_store
 from app.services.openrouter import (
-    OpenRouterClient,
     OpenRouterAuthError,
     OpenRouterRateLimitError,
     OpenRouterAPIError,
@@ -27,14 +34,11 @@ from app.services.openrouter import (
 
 router = APIRouter(prefix="/api/v1/video", tags=["video"])
 
-# Flag indicating video generation availability on OpenRouter
-# This is set to False since video generation via OpenRouter is unverified
 VIDEO_GENERATION_AVAILABLE = False
 
 
 def _generate_job_id() -> str:
-    """Generate a unique job ID for video generation."""
-    return f"video_{uuid.uuid4().hex[:12]}"
+    return f"job_{uuid.uuid4().hex[:12]}"
 
 
 @router.post(
@@ -49,31 +53,37 @@ def _generate_job_id() -> str:
 )
 async def generate_video(request: VideoGenerationRequest) -> VideoGenerationResponse:
     """
-    Generate a video from a text prompt using AI.
+    Generate a video from a text prompt.
 
-    This endpoint uses AI models to create videos from text descriptions.
-    Video generation may take significantly longer than image generation.
-
-    Note: Video generation capability is currently UNVERIFIED on OpenRouter.
-    If video models are unavailable, a response with an unavailable_message
-    will be returned instead of actual video content.
-
-    Args:
-        request: Video generation request containing the prompt and options.
-
-    Returns:
-        VideoGenerationResponse with the generated video URL or unavailable message.
-
-    Raises:
-        HTTPException: On validation errors, authentication failures, or API errors.
+    MLX path: text-to-video uses uncensored Flux image + Wan Lightning I2V.
     """
     settings = get_settings()
-    job_id = _generate_job_id()
+    model = resolve_video_model_id(request.model)
 
-    # Use default model if not specified
-    model = request.model or settings.default_video_model
+    if use_mlx():
+        registry = get_registry()
+        try:
+            registry.get_video(model)
+        except KeyError as exc:
+            raise HTTPException(status_code=400, detail={"error": "invalid_model", "message": str(exc)}) from exc
 
-    # Check if video generation is available
+        job_id = _generate_job_id()
+        job = get_job_store().create(
+            kind=JobKind.TEXT_TO_VIDEO,
+            model_id=model,
+            prompt=request.prompt,
+            metadata={
+                "duration": request.duration,
+                "fps": request.fps,
+                "resolution": request.resolution,
+            },
+            job_id=job_id,
+        )
+        await enqueue_job(job)
+        return video_response_from_job(job, duration=request.duration)
+
+    job_id = f"video_{uuid.uuid4().hex[:12]}"
+
     if not VIDEO_GENERATION_AVAILABLE:
         return VideoGenerationResponse(
             job_id=job_id,
@@ -83,17 +93,13 @@ async def generate_video(request: VideoGenerationRequest) -> VideoGenerationResp
             duration=request.duration,
             created_at=datetime.utcnow(),
             unavailable_message=(
-                "Video generation is not currently available. "
-                "The video generation models on OpenRouter have not been verified. "
-                "Please check back later or use the photo generation endpoint instead."
+                "Video generation is not currently available via OpenRouter. "
+                "Set INFERENCE_BACKEND=mlx for local generation on Apple Silicon."
             ),
         )
 
     try:
         async with get_openrouter_client_async() as client:
-            # Attempt to call video generation API
-            # Note: This code path may not work as video generation on OpenRouter
-            # is unverified. Keeping the implementation for future compatibility.
             result = await client.generate_video_async(
                 prompt=request.prompt,
                 model=model,
@@ -102,7 +108,6 @@ async def generate_video(request: VideoGenerationRequest) -> VideoGenerationResp
                 resolution=request.resolution,
             )
 
-            # Extract video data from response
             video_url = None
             thumbnail_url = None
 
@@ -125,23 +130,16 @@ async def generate_video(request: VideoGenerationRequest) -> VideoGenerationResp
     except OpenRouterAuthError as e:
         raise HTTPException(
             status_code=401,
-            detail={
-                "error": "authentication_error",
-                "message": str(e),
-            },
+            detail={"error": "authentication_error", "message": str(e)},
         )
 
     except OpenRouterRateLimitError as e:
         raise HTTPException(
             status_code=429,
-            detail={
-                "error": "rate_limit_exceeded",
-                "message": str(e),
-            },
+            detail={"error": "rate_limit_exceeded", "message": str(e)},
         )
 
     except OpenRouterAPIError as e:
-        # Return a failed response for API errors instead of raising
         return VideoGenerationResponse(
             job_id=job_id,
             status=JobStatus.FAILED,
@@ -153,11 +151,14 @@ async def generate_video(request: VideoGenerationRequest) -> VideoGenerationResp
         )
 
     except Exception as e:
-        # Unexpected errors
         raise HTTPException(
             status_code=500,
-            detail={
-                "error": "internal_error",
-                "message": f"An unexpected error occurred: {str(e)}",
-            },
+            detail={"error": "internal_error", "message": f"An unexpected error occurred: {str(e)}"},
         )
+
+
+@router.get("/status/{job_id}", response_model=VideoGenerationResponse)
+async def video_job_status(job_id: str) -> VideoGenerationResponse:
+    job = get_job_or_404(job_id)
+    duration = int(job.metadata.get("duration", 5))
+    return video_response_from_job(job, duration=duration)

@@ -27,9 +27,21 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
-    # Default AI Models
-    default_image_model: str = "openai/dall-e-3"
-    default_video_model: str = "stabilityai/stable-video-diffusion"
+    # Inference backend: mlx (local Apple Silicon) or openrouter (cloud)
+    inference_backend: str = "mlx"
+    mlx_enabled: bool = True
+    mlx_python: str = ""
+    mflux_binary: str = ""
+    mlx_models_dir: str = "backend/mlx_models/weights"
+    data_dir: str = "data"
+    hf_home: str = ""
+    media_url_prefix: str = "/media"
+    mlx_worker_poll_seconds: float = 2.0
+    mlx_job_timeout_seconds: int = 3600
+
+    # Default AI Models (registry IDs when using mlx, OpenRouter slugs when cloud)
+    default_image_model: str = "flux-dev-uncensored-q4"
+    default_video_model: str = "wan22-i2v-lightning"
 
     # CORS Configuration
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]

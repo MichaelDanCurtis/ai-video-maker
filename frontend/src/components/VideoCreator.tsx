@@ -1,13 +1,20 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/Card';
 import { TextArea } from '@/components/ui/Input';
 import { ModelSelector, DEFAULT_VIDEO_MODELS } from '@/components/ui/ModelSelector';
 import { LoadingState } from '@/components/ui/LoadingSpinner';
-import { ErrorAlert, WarningAlert } from '@/components/ui/ErrorAlert';
-import { generateVideo, getErrorMessage } from '@/lib/api';
+import { ErrorAlert } from '@/components/ui/ErrorAlert';
+import {
+  generateVideo,
+  getVideoJobStatus,
+  pollJobStatus,
+  getErrorMessage,
+  resolveMediaUrl,
+} from '@/lib/api';
+import { useVideoModels } from '@/hooks/useModels';
 import type { VideoGenerationResponse } from '@/lib/types';
 
 interface VideoCreatorProps {
@@ -15,11 +22,19 @@ interface VideoCreatorProps {
 }
 
 export function VideoCreator({ onGenerate }: VideoCreatorProps) {
+  const { models, loading: modelsLoading } = useVideoModels(DEFAULT_VIDEO_MODELS);
   const [prompt, setPrompt] = useState('');
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_VIDEO_MODELS[0]?.id || 'stabilityai/stable-video-diffusion');
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_VIDEO_MODELS[0]?.id || 'wan22-t2v-lightning');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [progressMessage, setProgressMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generatedVideo, setGeneratedVideo] = useState<VideoGenerationResponse | null>(null);
+
+  useEffect(() => {
+    if (models.length > 0 && !models.find((m) => m.id === selectedModel)) {
+      setSelectedModel(models[0].id);
+    }
+  }, [models, selectedModel]);
 
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim()) {
@@ -29,12 +44,31 @@ export function VideoCreator({ onGenerate }: VideoCreatorProps) {
 
     setIsGenerating(true);
     setError(null);
+    setProgressMessage('Queued — Flux image then Wan video animation...');
 
     try {
-      const response = await generateVideo({
+      const initial = await generateVideo({
         prompt: prompt.trim(),
         model: selectedModel,
       });
+
+      let response = initial;
+      if (initial.status === 'pending' || initial.status === 'processing') {
+        response = await pollJobStatus(
+          () => getVideoJobStatus(initial.job_id),
+          {
+            intervalMs: 3000,
+            maxAttempts: 800,
+            onProgress: (status) => {
+              if (status.progress && status.progress < 50) {
+                setProgressMessage('Generating keyframe image (uncensored Flux)...');
+              } else if (status.status === 'processing') {
+                setProgressMessage('Animating with Wan 2.2 Lightning...');
+              }
+            },
+          }
+        );
+      }
 
       setGeneratedVideo(response);
 
@@ -46,6 +80,7 @@ export function VideoCreator({ onGenerate }: VideoCreatorProps) {
       setGeneratedVideo(null);
     } finally {
       setIsGenerating(false);
+      setProgressMessage(null);
     }
   }, [prompt, selectedModel, onGenerate]);
 
@@ -59,29 +94,27 @@ export function VideoCreator({ onGenerate }: VideoCreatorProps) {
     setError(null);
   }, []);
 
-  const handleDismissWarning = useCallback(() => {
-    if (generatedVideo) {
-      setGeneratedVideo({ ...generatedVideo, unavailable_message: undefined });
-    }
-  }, [generatedVideo]);
-
   const handleDownload = useCallback(() => {
-    if (!generatedVideo?.video_url) return;
+    const url = resolveMediaUrl(generatedVideo?.video_url);
+    if (!url) return;
 
     const link = document.createElement('a');
-    link.href = generatedVideo.video_url;
-    link.download = `generated-video-${generatedVideo.job_id}.mp4`;
+    link.href = url;
+    link.download = `generated-video-${generatedVideo?.job_id}.mp4`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   }, [generatedVideo]);
+
+  const videoUrl = resolveMediaUrl(generatedVideo?.video_url);
+  const posterUrl = resolveMediaUrl(generatedVideo?.thumbnail_url);
 
   return (
     <Card variant="bordered" className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>Create Video</CardTitle>
         <CardDescription>
-          Generate stunning videos from text descriptions using AI
+          Text-to-video via local MLX: uncensored Flux frame + Wan 2.2 animation
         </CardDescription>
       </CardHeader>
 
@@ -99,10 +132,11 @@ export function VideoCreator({ onGenerate }: VideoCreatorProps) {
 
         <ModelSelector
           label="Model"
-          models={DEFAULT_VIDEO_MODELS}
+          models={models}
           value={selectedModel}
           onChange={setSelectedModel}
           disabled={isGenerating}
+          isLoading={modelsLoading}
           fullWidth
           placeholder="Select an AI model..."
         />
@@ -118,36 +152,22 @@ export function VideoCreator({ onGenerate }: VideoCreatorProps) {
         )}
 
         {isGenerating && (
-          <LoadingState message="Generating your video... This may take a few minutes." />
+          <LoadingState message={progressMessage || 'Generating your video... This may take several minutes.'} />
         )}
 
-        {generatedVideo?.unavailable_message && !isGenerating && (
-          <WarningAlert
-            title="Feature Unavailable"
-            message={generatedVideo.unavailable_message}
-            showDismiss
-            onDismiss={handleDismissWarning}
-          />
-        )}
-
-        {generatedVideo?.video_url && !isGenerating && (
+        {videoUrl && !isGenerating && (
           <div className="space-y-3">
             <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-              <video
-                src={generatedVideo.video_url}
-                controls
-                className="w-full h-auto"
-                poster={generatedVideo.thumbnail_url}
-              >
+              <video src={videoUrl} controls className="w-full h-auto" poster={posterUrl || undefined}>
                 Your browser does not support the video tag.
               </video>
             </div>
             <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-              <span>Model: {generatedVideo.model}</span>
-              <span>Duration: {generatedVideo.duration}s</span>
+              <span>Model: {generatedVideo?.model}</span>
+              <span>Duration: {generatedVideo?.duration}s</span>
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              <span>ID: {generatedVideo.job_id}</span>
+              <span>ID: {generatedVideo?.job_id}</span>
             </div>
           </div>
         )}
@@ -162,12 +182,8 @@ export function VideoCreator({ onGenerate }: VideoCreatorProps) {
           Clear
         </Button>
         <div className="flex gap-3">
-          {generatedVideo?.video_url && (
-            <Button
-              variant="secondary"
-              onClick={handleDownload}
-              disabled={isGenerating}
-            >
+          {videoUrl && (
+            <Button variant="secondary" onClick={handleDownload} disabled={isGenerating}>
               Download
             </Button>
           )}

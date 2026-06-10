@@ -254,39 +254,45 @@ export function ModelSelector({
   );
 }
 
-// Default models for image generation
+// Fallback until /api/v1/models loads from the MLX registry
 export const DEFAULT_IMAGE_MODELS: ModelOption[] = [
   {
-    id: 'openai/dall-e-3',
-    name: 'DALL-E 3',
-    description: 'High-quality image generation from OpenAI',
-    provider: 'OpenAI',
-    capabilities: ['text-to-image', 'high-quality'],
+    id: 'flux-dev-uncensored-q4',
+    name: 'Flux Dev Uncensored (Q4)',
+    description: 'Community uncensored Flux Dev — default local MLX model',
+    provider: 'local-mlx',
+    capabilities: ['text-to-image', 'uncensored'],
   },
   {
-    id: 'openai/dall-e-2',
-    name: 'DALL-E 2',
-    description: 'Previous generation DALL-E model',
-    provider: 'OpenAI',
-    capabilities: ['text-to-image', 'fast'],
+    id: 'flux-schnell-q8',
+    name: 'Flux Schnell (Fast)',
+    description: 'Fast distilled Flux for drafts',
+    provider: 'local-mlx',
+    capabilities: ['text-to-image'],
   },
   {
-    id: 'stabilityai/stable-diffusion-xl',
-    name: 'Stable Diffusion XL',
-    description: 'Open-source image generation',
-    provider: 'Stability AI',
-    capabilities: ['text-to-image', 'open-source'],
+    id: 'z-image-turbo-q8',
+    name: 'Z-Image Turbo (Fast)',
+    description: 'Quick previews before full Flux renders',
+    provider: 'local-mlx',
+    capabilities: ['text-to-image'],
   },
 ];
 
-// Default models for video generation (capabilities may vary)
 export const DEFAULT_VIDEO_MODELS: ModelOption[] = [
   {
-    id: 'stabilityai/stable-video-diffusion',
-    name: 'Stable Video Diffusion',
-    description: 'Image-to-video generation',
-    provider: 'Stability AI',
-    capabilities: ['image-to-video'],
+    id: 'wan22-i2v-lightning',
+    name: 'Wan 2.2 I2V Lightning',
+    description: 'Image-to-video, 4-step Lightning LoRA',
+    provider: 'local-mlx',
+    capabilities: ['image-to-video', 'uncensored'],
+  },
+  {
+    id: 'wan22-t2v-lightning',
+    name: 'Wan 2.2 T2V Lightning',
+    description: 'Text-to-video via Flux frame + Wan animation',
+    provider: 'local-mlx',
+    capabilities: ['text-to-video', 'uncensored'],
   },
 ];
 

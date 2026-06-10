@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/Card';
 import { TextArea } from '@/components/ui/Input';
 import { ModelSelector, DEFAULT_IMAGE_MODELS } from '@/components/ui/ModelSelector';
 import { LoadingState } from '@/components/ui/LoadingSpinner';
 import { ErrorAlert } from '@/components/ui/ErrorAlert';
-import { generatePhoto, getErrorMessage } from '@/lib/api';
+import { generatePhoto, getPhotoJobStatus, pollJobStatus, getErrorMessage, resolveMediaUrl } from '@/lib/api';
+import { useImageModels } from '@/hooks/useModels';
 import type { PhotoGenerationResponse } from '@/lib/types';
 
 interface PhotoCreatorProps {
@@ -15,11 +16,19 @@ interface PhotoCreatorProps {
 }
 
 export function PhotoCreator({ onGenerate }: PhotoCreatorProps) {
+  const { models, loading: modelsLoading } = useImageModels(DEFAULT_IMAGE_MODELS);
   const [prompt, setPrompt] = useState('');
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_IMAGE_MODELS[0]?.id || 'openai/dall-e-3');
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_IMAGE_MODELS[0]?.id || 'flux-dev-uncensored-q4');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [progressMessage, setProgressMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<PhotoGenerationResponse | null>(null);
+
+  useEffect(() => {
+    if (models.length > 0 && !models.find((m) => m.id === selectedModel)) {
+      setSelectedModel(models[0].id);
+    }
+  }, [models, selectedModel]);
 
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim()) {
@@ -29,12 +38,29 @@ export function PhotoCreator({ onGenerate }: PhotoCreatorProps) {
 
     setIsGenerating(true);
     setError(null);
+    setProgressMessage('Queued for local MLX generation...');
 
     try {
-      const response = await generatePhoto({
+      const initial = await generatePhoto({
         prompt: prompt.trim(),
         model: selectedModel,
       });
+
+      let response = initial;
+      if (initial.status === 'pending' || initial.status === 'processing') {
+        response = await pollJobStatus(
+          () => getPhotoJobStatus(initial.job_id),
+          {
+            intervalMs: 2500,
+            maxAttempts: 600,
+            onProgress: (status) => {
+              if (status.status === 'processing') {
+                setProgressMessage('Generating on Apple Silicon (Flux uncensored)...');
+              }
+            },
+          }
+        );
+      }
 
       setGeneratedImage(response);
 
@@ -46,6 +72,7 @@ export function PhotoCreator({ onGenerate }: PhotoCreatorProps) {
       setGeneratedImage(null);
     } finally {
       setIsGenerating(false);
+      setProgressMessage(null);
     }
   }, [prompt, selectedModel, onGenerate]);
 
@@ -62,7 +89,8 @@ export function PhotoCreator({ onGenerate }: PhotoCreatorProps) {
   const handleDownload = useCallback(() => {
     if (!generatedImage) return;
 
-    const imageUrl = generatedImage.image_url ||
+    const imageUrl =
+      resolveMediaUrl(generatedImage.image_url) ||
       (generatedImage.image_base64 ? `data:image/png;base64,${generatedImage.image_base64}` : null);
 
     if (!imageUrl) return;
@@ -75,7 +103,8 @@ export function PhotoCreator({ onGenerate }: PhotoCreatorProps) {
     document.body.removeChild(link);
   }, [generatedImage]);
 
-  const imageSource = generatedImage?.image_url ||
+  const imageSource =
+    resolveMediaUrl(generatedImage?.image_url) ||
     (generatedImage?.image_base64 ? `data:image/png;base64,${generatedImage.image_base64}` : null);
 
   return (
@@ -83,7 +112,7 @@ export function PhotoCreator({ onGenerate }: PhotoCreatorProps) {
       <CardHeader>
         <CardTitle>Create Image</CardTitle>
         <CardDescription>
-          Generate stunning images from text descriptions using AI
+          Generate images locally with uncensored Flux on your Mac (MLX)
         </CardDescription>
       </CardHeader>
 
@@ -101,10 +130,11 @@ export function PhotoCreator({ onGenerate }: PhotoCreatorProps) {
 
         <ModelSelector
           label="Model"
-          models={DEFAULT_IMAGE_MODELS}
+          models={models}
           value={selectedModel}
           onChange={setSelectedModel}
           disabled={isGenerating}
+          isLoading={modelsLoading}
           fullWidth
           placeholder="Select an AI model..."
         />
@@ -120,7 +150,7 @@ export function PhotoCreator({ onGenerate }: PhotoCreatorProps) {
         )}
 
         {isGenerating && (
-          <LoadingState message="Generating your image... This may take a moment." />
+          <LoadingState message={progressMessage || 'Generating your image... This may take a few minutes on first run.'} />
         )}
 
         {imageSource && !isGenerating && (
@@ -150,11 +180,7 @@ export function PhotoCreator({ onGenerate }: PhotoCreatorProps) {
         </Button>
         <div className="flex gap-3">
           {generatedImage && imageSource && (
-            <Button
-              variant="secondary"
-              onClick={handleDownload}
-              disabled={isGenerating}
-            >
+            <Button variant="secondary" onClick={handleDownload} disabled={isGenerating}>
               Download
             </Button>
           )}

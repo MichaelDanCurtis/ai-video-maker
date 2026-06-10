@@ -20,6 +20,14 @@ from app.models.schemas import (
     PhotoToVideoResponse,
     VideoEditResponse,
 )
+from app.services.mlx.helpers import (
+    get_job_or_404,
+    photo_to_video_response_from_job,
+    resolve_video_model_id,
+    use_mlx,
+)
+from app.services.mlx.jobs import JobKind
+from app.services.mlx.worker import enqueue_job, get_job_store, save_upload_for_job
 from app.services.openrouter import (
     OpenRouterAuthError,
     OpenRouterRateLimitError,
@@ -392,8 +400,32 @@ async def photo_to_video(
     # Read and validate file size
     file_content = await _read_and_validate_file_size(file)
 
-    # Use default model if not specified
-    model_to_use = model or settings.default_video_model
+    model_to_use = resolve_video_model_id(model)
+
+    if use_mlx():
+        job_id = f"job_{uuid.uuid4().hex[:12]}"
+        upload_path = save_upload_for_job(job_id, file.filename or "input.png", file_content)
+        prompt_text = motion_prompt or "Subtle natural motion and cinematic movement"
+        job = get_job_store().create(
+            kind=JobKind.PHOTO_TO_VIDEO,
+            model_id=model_to_use,
+            prompt=prompt_text,
+            metadata={
+                "input_image_path": str(upload_path),
+                "duration": duration,
+                "motion_strength": motion_strength,
+                "loop": loop,
+                "fps": fps,
+                "original_filename": file.filename,
+            },
+            job_id=job_id,
+        )
+        await enqueue_job(job)
+        return photo_to_video_response_from_job(
+            job,
+            duration=duration,
+            filename=file.filename,
+        )
 
     # Check if photo-to-video transformation is available
     if not PHOTO_TO_VIDEO_AVAILABLE:
@@ -487,6 +519,14 @@ async def photo_to_video(
                 "message": f"An unexpected error occurred: {str(e)}",
             },
         )
+
+
+@router.get("/photo-to-video/status/{job_id}", response_model=PhotoToVideoResponse)
+async def photo_to_video_job_status(job_id: str) -> PhotoToVideoResponse:
+    job = get_job_or_404(job_id)
+    duration = int(job.metadata.get("duration", 3))
+    filename = job.metadata.get("original_filename")
+    return photo_to_video_response_from_job(job, duration=duration, filename=filename)
 
 
 @router.post(

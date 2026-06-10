@@ -45,6 +45,19 @@ export function getApiConfig(): ApiConfig {
   return { ...currentConfig };
 }
 
+/**
+ * Resolve a media path from the API (e.g. /media/job_x/result.png) to a full URL.
+ */
+export function resolveMediaUrl(path?: string | null): string | null {
+  if (!path) return null;
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path;
+  }
+  const base = currentConfig.baseUrl.replace(/\/$/, '');
+  const clean = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${clean}`;
+}
+
 // =============================================================================
 // HTTP Client Utilities
 // =============================================================================
@@ -496,6 +509,7 @@ export const api = {
   isAuthError,
   isRateLimitError,
   getErrorMessage,
+  resolveMediaUrl,
 };
 
 export default api;
