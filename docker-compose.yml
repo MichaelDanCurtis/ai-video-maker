@@ -1,0 +1,97 @@
+version: '3.8'
+
+# ===========================================
+# AI Video Maker - Development Environment
+# ===========================================
+# Run: docker-compose up -d
+# Stop: docker-compose down
+# Logs: docker-compose logs -f [service_name]
+
+services:
+  # ===========================================
+  # Frontend - Next.js Application
+  # ===========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ai-video-maker-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    networks:
+      - ai-video-maker-network
+    restart: unless-stopped
+
+  # ===========================================
+  # Backend - FastAPI Application
+  # ===========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai-video-maker-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - DEFAULT_IMAGE_MODEL=${DEFAULT_IMAGE_MODEL:-openai/dall-e-3}
+      - DEFAULT_VIDEO_MODEL=${DEFAULT_VIDEO_MODEL:-stabilityai/stable-video-diffusion}
+      - LANGFLOW_ENABLED=${LANGFLOW_ENABLED:-false}
+      - LANGFLOW_URL=${LANGFLOW_URL:-http://langflow:7860}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - MAX_UPLOAD_SIZE=${MAX_UPLOAD_SIZE:-52428800}
+    volumes:
+      - ./backend:/app
+      - backend-uploads:/app/uploads
+    networks:
+      - ai-video-maker-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ===========================================
+  # LangFlow - Workflow Orchestration (Optional)
+  # ===========================================
+  # Uncomment this service if you want to use LangFlow
+  # for complex multi-step AI pipelines
+  # langflow:
+  #   image: langflowai/langflow:latest
+  #   container_name: ai-video-maker-langflow
+  #   ports:
+  #     - "7860:7860"
+  #   environment:
+  #     - LANGFLOW_DATABASE_URL=sqlite:///./langflow.db
+  #   volumes:
+  #     - langflow-data:/app/langflow
+  #   networks:
+  #     - ai-video-maker-network
+  #   restart: unless-stopped
+
+# ===========================================
+# Networks
+# ===========================================
+networks:
+  ai-video-maker-network:
+    driver: bridge
+
+# ===========================================
+# Volumes
+# ===========================================
+volumes:
+  backend-uploads:
+    driver: local
+  # langflow-data:
+  #   driver: local
