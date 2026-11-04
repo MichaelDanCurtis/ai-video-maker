@@ -1,0 +1,24 @@
+# Auto Claude data directory
+.auto-claude/
+
+# Python
+backend/.venv/
+backend/.venv-mlx/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local data / outputs
+data/
+.env
+
+# Node
+frontend/node_modules/
+frontend/.next/
+
+# Model weights (download via scripts/download_models.sh)
+backend/mlx_models/weights/
+
+# OS
+.DS_Store
+.worktrees/
