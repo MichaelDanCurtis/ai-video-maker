@@ -2,22 +2,24 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getImageModels, getVideoModels } from '@/lib/api';
-import type { ModelInfo } from '@/lib/types';
+import type { ContentTier, ModelInfo, VideoCapability } from '@/lib/types';
 import type { ModelOption } from '@/components/ui/ModelSelector';
 
 function toOptions(models: ModelInfo[]): ModelOption[] {
   return models.map((m) => ({
     id: m.id,
-    name: m.ready === false ? `${m.name} (downloading…)` : m.name,
+    name: m.ready === false ? `${m.name} (not downloaded)` : m.name,
     description: m.description,
     provider: m.provider,
     capabilities: m.capabilities,
+    nsfw: m.nsfw,
     uncensored: m.uncensored,
+    content_tier: m.content_tier ?? undefined,
     ready: m.ready,
   }));
 }
 
-export function useImageModels(fallback: ModelOption[]) {
+export function useImageModels(fallback: ModelOption[], tier: ContentTier = 'all') {
   const [models, setModels] = useState<ModelOption[]>(fallback);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +28,7 @@ export function useImageModels(fallback: ModelOption[]) {
     setLoading(true);
     setError(null);
     try {
-      const response = await getImageModels();
+      const response = await getImageModels(tier);
       if (response.models.length > 0) {
         setModels(toOptions(response.models));
       }
@@ -35,7 +37,7 @@ export function useImageModels(fallback: ModelOption[]) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tier]);
 
   useEffect(() => {
     refresh();
@@ -44,7 +46,7 @@ export function useImageModels(fallback: ModelOption[]) {
   return { models, loading, error, refresh };
 }
 
-export function useVideoModels(fallback: ModelOption[]) {
+export function useVideoModels(fallback: ModelOption[], capability: VideoCapability = 'all') {
   const [models, setModels] = useState<ModelOption[]>(fallback);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export function useVideoModels(fallback: ModelOption[]) {
     setLoading(true);
     setError(null);
     try {
-      const response = await getVideoModels();
+      const response = await getVideoModels(capability);
       if (response.models.length > 0) {
         setModels(toOptions(response.models));
       }
@@ -62,7 +64,7 @@ export function useVideoModels(fallback: ModelOption[]) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [capability]);
 
   useEffect(() => {
     refresh();

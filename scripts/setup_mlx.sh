@@ -43,7 +43,7 @@ Add to your .env:
   MLX_PYTHON=${VENV}/bin/python
   INFERENCE_BACKEND=mlx
   MLX_ENABLED=true
-  DEFAULT_IMAGE_MODEL=flux-krea-uncensored-q4
+  DEFAULT_IMAGE_MODEL=flux-dev-nsfw-lora
   DEFAULT_VIDEO_MODEL=wan22-i2v-lightning
 
 Download model weights:

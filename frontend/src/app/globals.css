@@ -3,28 +3,33 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 255, 255, 255;
-  --background-end-rgb: 245, 245, 245;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 10, 10, 20;
-    --background-end-rgb: 20, 20, 40;
-  }
+  --velvet-bg: #060508;
+  --velvet-surface: #100a0e;
+  --velvet-elevated: #1a1018;
+  --velvet-rose: #e11d48;
+  --velvet-crimson: #be123c;
+  --velvet-wine: #4c0519;
+  --velvet-glow: rgba(225, 29, 72, 0.35);
+  --velvet-violet: #7c3aed;
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
   min-height: 100vh;
+  background-color: var(--velvet-bg);
+  background-image:
+    radial-gradient(ellipse 90% 55% at 50% -15%, rgba(190, 18, 60, 0.22), transparent 55%),
+    radial-gradient(ellipse 50% 45% at 0% 100%, rgba(124, 58, 237, 0.12), transparent 50%),
+    radial-gradient(ellipse 45% 40% at 100% 80%, rgba(225, 29, 72, 0.1), transparent 45%);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 @layer base {
@@ -33,8 +38,36 @@ body {
   }
 }
 
+@layer components {
+  .velvet-panel {
+    @apply rounded-2xl border border-rose-500/15 bg-[#100a0e]/90 backdrop-blur-md shadow-[0_0_60px_-12px_rgba(190,18,60,0.25)];
+  }
+
+  .velvet-glow-ring {
+    box-shadow:
+      0 0 0 1px rgba(225, 29, 72, 0.2),
+      0 0 40px -8px rgba(225, 29, 72, 0.35);
+  }
+
+  .nsfw-badge {
+    @apply inline-flex items-center gap-1 rounded-full border border-rose-500/40 bg-rose-950/50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-rose-300;
+  }
+
+  .studio-input {
+    @apply block w-full rounded-xl border border-rose-500/20 bg-black/40 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 transition-colors focus:border-rose-500/50 focus:outline-none focus:ring-2 focus:ring-rose-500/25;
+  }
+
+  .studio-label {
+    @apply block text-sm font-medium text-rose-100/90;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .font-display {
+    font-family: var(--font-syne), system-ui, sans-serif;
   }
 }

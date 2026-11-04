@@ -7,9 +7,21 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional
 
+from app.services.mlx.catalog import image_models_from_catalog
+from app.services.mlx.video_catalog import video_models_from_catalog
+
 _REGISTRY_PATH = (
     Path(__file__).resolve().parent.parent.parent.parent / "mlx_models" / "registry.json"
 )
+
+
+def _load_registry_data() -> dict[str, Any]:
+    with _REGISTRY_PATH.open(encoding="utf-8") as handle:
+        data = json.load(handle)
+    # Image + video catalogs are curated separately (different engines, different download sizes).
+    data["image_models"] = image_models_from_catalog()
+    data["video_models"] = video_models_from_catalog()
+    return data
 
 
 class ModelRegistry:
@@ -43,8 +55,7 @@ class ModelRegistry:
 
 @lru_cache()
 def get_registry() -> ModelRegistry:
-    with _REGISTRY_PATH.open(encoding="utf-8") as handle:
-        return ModelRegistry(json.load(handle))
+    return ModelRegistry(_load_registry_data())
 
 
 def reload_registry() -> ModelRegistry:

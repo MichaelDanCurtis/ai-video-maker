@@ -17,6 +17,7 @@ from app.routers import (
     jobs_router,
     models_router,
     photo_router,
+    project_router,
     transform_router,
     video_router,
 )
@@ -54,6 +55,7 @@ app.include_router(health_router)
 app.include_router(models_router)
 app.include_router(jobs_router)
 app.include_router(photo_router)
+app.include_router(project_router)
 app.include_router(transform_router)
 app.include_router(video_router)
 

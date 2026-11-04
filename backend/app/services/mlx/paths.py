@@ -74,6 +74,30 @@ def resolve_image_model_dir(model_entry: dict) -> Path:
     return models_dir() / name
 
 
+def resolve_image_base_weights_dir(model_entry: dict) -> Path:
+    """mflux bundle directory — composite LoRA models may share a base_weights_dir."""
+    name = (
+        model_entry.get("base_weights_dir")
+        or model_entry.get("local_dir")
+        or model_entry.get("id", "flux_model")
+    )
+    return models_dir() / name
+
+
+def resolve_lora_weights_path(model_entry: dict) -> Path | None:
+    """On-disk LoRA file for registry entries that declare lora_local_subdir + lora_filename."""
+    subdir = model_entry.get("lora_local_subdir")
+    if not subdir:
+        return None
+    filename = model_entry.get("lora_filename", "lora.safetensors")
+    return models_dir() / subdir / filename
+
+
+def lora_weights_ready(model_entry: dict) -> bool:
+    path = resolve_lora_weights_path(model_entry)
+    return path is not None and path.is_file() and path.stat().st_size > 0
+
+
 def _mflux_bundle_ready(path: Path) -> bool:
     """True when an mflux-native bundle has core component dirs with weights."""
     if not path.is_dir():
@@ -105,10 +129,28 @@ def _has_complete_weights(path: Path) -> bool:
 
 def resolve_image_model_path(model_entry: dict) -> str:
     """Prefer on-disk mflux bundle; fall back to HuggingFace repo id."""
-    local = resolve_image_model_dir(model_entry)
+    local = resolve_image_base_weights_dir(model_entry)
     if _mflux_bundle_ready(local):
         return str(local)
     return model_entry.get("huggingface_model") or model_entry.get("model_path") or str(local)
+
+
+def resolve_lora_paths_for_model(model_entry: dict) -> list[str]:
+    """Resolve LoRA paths for mflux (--lora-paths accepts local files or repo:file)."""
+    explicit = model_entry.get("lora_paths") or []
+    if explicit:
+        return [str(p) for p in explicit]
+
+    if not model_entry.get("lora_huggingface_repo"):
+        return []
+
+    local = resolve_lora_weights_path(model_entry)
+    if local and local.is_file():
+        return [str(local)]
+
+    repo = str(model_entry["lora_huggingface_repo"])
+    filename = model_entry.get("lora_filename", "lora.safetensors")
+    return [f"{repo}:{filename}"]
 
 
 def _wan_mlx_ready(path: Path) -> bool:
@@ -122,7 +164,11 @@ def _wan_mlx_ready(path: Path) -> bool:
 
 def model_weights_ready(model_entry: dict, *, kind: str = "image") -> bool:
     if kind == "image":
-        return _mflux_bundle_ready(resolve_image_model_dir(model_entry))
+        if not _mflux_bundle_ready(resolve_image_base_weights_dir(model_entry)):
+            return False
+        if model_entry.get("lora_huggingface_repo") or model_entry.get("lora_local_subdir"):
+            return lora_weights_ready(model_entry)
+        return True
     engine = model_entry.get("engine", "")
     if engine == "mlx-video-ltx2":
         local = models_dir() / (model_entry.get("local_dir") or "ltx2-distilled")
