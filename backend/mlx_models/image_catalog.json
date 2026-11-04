@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "curated_at": "2026-06-11",
+  "notes": "Hand-picked for Apple Silicon + mflux. NSFW entries are Flux Dev Q4 + a single-file LoRA. Verified via Hugging Face Hub API (scripts/curate_hf_catalog.py).",
+  "templates": {
+    "flux-dev-lora": {
+      "engine": "mflux-flux",
+      "huggingface_model": "dhairyashil/FLUX.1-dev-mflux-4bit",
+      "base_weights_dir": "flux-dev-q4",
+      "base_model": "dev",
+      "quantize": 4,
+      "steps": 28,
+      "guidance": 3.5,
+      "default_width": 768,
+      "default_height": 1024
+    },
+    "flux-dev-base": {
+      "engine": "mflux-flux",
+      "huggingface_model": "dhairyashil/FLUX.1-dev-mflux-4bit",
+      "local_dir": "flux-dev-q4",
+      "base_model": "dev",
+      "quantize": 4,
+      "steps": 20,
+      "guidance": 3.5,
+      "default_width": 768,
+      "default_height": 1024
+    },
+    "flux-dev-q8": {
+      "engine": "mflux-flux",
+      "huggingface_model": "dhairyashil/FLUX.1-dev-mflux-8bit",
+      "local_dir": "flux-dev-q8",
+      "base_model": "dev",
+      "quantize": 8,
+      "steps": 20,
+      "guidance": 3.5,
+      "default_width": 768,
+      "default_height": 1024
+    },
+    "flux-krea-base": {
+      "engine": "mflux-flux",
+      "huggingface_model": "filipstrand/FLUX.1-Krea-dev-mflux-4bit",
+      "local_dir": "flux-krea-uncensored-q4",
+      "base_model": "krea-dev",
+      "quantize": 4,
+      "steps": 20,
+      "guidance": 3.5,
+      "default_width": 768,
+      "default_height": 1024
+    },
+    "flux-schnell-base": {
+      "engine": "mflux-flux",
+      "huggingface_model": "dhairyashil/FLUX.1-schnell-mflux-4bit",
+      "local_dir": "flux-schnell-q4",
+      "base_model": "schnell",
+      "quantize": 4,
+      "steps": 4,
+      "guidance": 0,
+      "default_width": 768,
+      "default_height": 1024
+    },
+    "z-image-turbo-q4": {
+      "engine": "mflux-z-image",
+      "huggingface_model": "filipstrand/Z-Image-Turbo-mflux-4bit",
+      "local_dir": "z-image-turbo-q4",
+      "base_model": "z-image-turbo",
+      "quantize": 4,
+      "steps": 9,
+      "default_width": 768,
+      "default_height": 1024
+    },
+    "z-image-turbo-q8": {
+      "engine": "mflux-z-image",
+      "huggingface_model": "filipstrand/Z-Image-Turbo-mflux-4bit",
+      "local_dir": "z-image-turbo-q8",
+      "base_model": "z-image-turbo",
+      "quantize": 8,
+      "steps": 9,
+      "default_width": 768,
+      "default_height": 1024
+    },
+    "z-image-lora": {
+      "engine": "mflux-z-image",
+      "huggingface_model": "filipstrand/Z-Image-Turbo-mflux-4bit",
+      "base_weights_dir": "z-image-turbo-q4",
+      "base_model": "z-image-turbo",
+      "quantize": 4,
+      "steps": 9,
+      "default_width": 768,
+      "default_height": 1024
+    }
+  },
+  "entries": [
+    {
+      "id": "flux-dev-nsfw-lora",
+      "name": "Flux Dev NSFW — Heartsync",
+      "description": "Default explicit model — Flux Dev Q4 + Heartsync NSFW LoRA.",
+      "content_tier": "nsfw",
+      "nsfw": true,
+      "template": "flux-dev-lora",
+      "lora_huggingface_repo": "Heartsync/Flux-NSFW-uncensored",
+      "lora_filename": "lora.safetensors",
+      "lora_local_subdir": "loras/flux-nsfw-heartsync",
+      "lora_scale": 1.0,
+      "hf_downloads": 7068
+    },
+    {
+      "id": "flux-dev-nsfw-smith297",
+      "name": "Flux Dev NSFW — Smith297",
+      "description": "Popular community NSFW LoRA for Flux Dev.",
+      "content_tier": "nsfw",
+      "nsfw": true,
+      "template": "flux-dev-lora",
+      "lora_huggingface_repo": "smith297/nsfw_flux_lora_v1",
+      "lora_filename": "nsfw_flux_lora_v1.safetensors",
+      "lora_local_subdir": "loras/flux-nsfw-smith297",
+      "lora_scale": 0.9,
+      "hf_downloads": 183
+    },
+    {
+      "id": "flux-dev-nsfw-muapi-innuendo",
+      "name": "Flux Dev NSFW — Muapi Innuendo",
+      "description": "NSFW LoRA tuned for suggestive / explicit compositions.",
+      "content_tier": "nsfw",
+      "nsfw": true,
+      "template": "flux-dev-lora",
+      "lora_huggingface_repo": "Muapi/focus-on-sexual-innuendo-nsfw-lora-redcraft-il-pony-flux.1",
+      "lora_filename": "focus-on-sexual-innuendo-nsfw-lora-redcraft-il-pony-flux.1.safetensors",
+      "lora_local_subdir": "loras/flux-nsfw-muapi-innuendo",
+      "lora_scale": 0.85,
+      "hf_downloads": 156
+    },
+    {
+      "id": "flux-dev-nsfw-miasweet",
+      "name": "Flux Dev NSFW — MiaSweet",
+      "description": "Fast-trained NSFW LoRA (davidjaymes).",
+      "content_tier": "nsfw",
+      "nsfw": true,
+      "template": "flux-dev-lora",
+      "lora_huggingface_repo": "davidjaymes/depr_flux-lora-fast-training_miasweet-v1_nsfw",
+      "lora_filename": "flux-lora-fast-training_miasweet-v1_nsfw.safetensors",
+      "lora_local_subdir": "loras/flux-nsfw-miasweet",
+      "lora_scale": 0.9,
+      "hf_downloads": 54
+    },
+    {
+      "id": "flux-dev-nsfw-petruzetta",
+      "name": "Flux Dev NSFW — PetruZetta v2",
+      "description": "Enhanced NSFW LoRA v2 for Flux Dev.",
+      "content_tier": "nsfw",
+      "nsfw": true,
+      "template": "flux-dev-lora",
+      "lora_huggingface_repo": "PetruZetta/enh_nsfw_flux_lora_v2",
+      "lora_filename": "lora.safetensors",
+      "lora_local_subdir": "loras/flux-nsfw-petruzetta",
+      "lora_scale": 0.9,
+      "hf_downloads": 0
+    },
+    {
+      "id": "flux-dev-nsfw-kittysec",
+      "name": "Flux Dev NSFW — Kittysec",
+      "description": "Community NSFW LoRA for Flux Dev.",
+      "content_tier": "nsfw",
+      "nsfw": true,
+      "template": "flux-dev-lora",
+      "lora_huggingface_repo": "kittysec/nsfw_flux_lora",
+      "lora_filename": "nsfw_flux_lora_v1.safetensors",
+      "lora_local_subdir": "loras/flux-nsfw-kittysec",
+      "lora_scale": 0.9,
+      "hf_downloads": 1
+    },
+    {
+      "id": "flux-dev-nsfw-voxvici",
+      "name": "Flux Dev NSFW — Voxvici Anatomy",
+      "description": "Anatomy-focused NSFW LoRA (improved female nudity v2).",
+      "content_tier": "nsfw",
+      "nsfw": true,
+      "template": "flux-dev-lora",
+      "lora_huggingface_repo": "voxvici/flux-lora-nsfw",
+      "lora_filename": "Flux_Improved_Female_Nudity_v2.safetensors",
+      "lora_local_subdir": "loras/flux-nsfw-voxvici",
+      "lora_scale": 0.85,
+      "hf_downloads": 8
+    },
+    {
+      "id": "flux-dev-nsfw-nadam",
+      "name": "Flux Dev NSFW — Nadam",
+      "description": "Compact NSFW LoRA (ben.safetensors).",
+      "content_tier": "nsfw",
+      "nsfw": true,
+      "template": "flux-dev-lora",
+      "lora_huggingface_repo": "nadam54321/nsfw-flux-lora",
+      "lora_filename": "ben.safetensors",
+      "lora_local_subdir": "loras/flux-nsfw-nadam",
+      "lora_scale": 0.9,
+      "hf_downloads": 11
+    },
+    {
+      "id": "flux-dev-q4",
+      "name": "Flux Dev (Q4)",
+      "description": "Standard Flux Dev — general-purpose, SFW-biased training.",
+      "content_tier": "general",
+      "nsfw": false,
+      "template": "flux-dev-base"
+    },
+    {
+      "id": "flux-dev-q8",
+      "name": "Flux Dev (Q8)",
+      "description": "Higher-quality Flux Dev 8-bit — slower, sharper general renders.",
+      "content_tier": "general",
+      "nsfw": false,
+      "template": "flux-dev-q8"
+    },
+    {
+      "id": "flux-krea-uncensored-q4",
+      "name": "Flux Krea Dev (Q4)",
+      "description": "Krea aesthetic tuning — great portraits, not an NSFW fine-tune.",
+      "content_tier": "general",
+      "nsfw": false,
+      "template": "flux-krea-base"
+    },
+    {
+      "id": "flux-schnell-q4",
+      "name": "Flux Schnell Fast (Q4)",
+      "description": "4-step distilled Flux for quick SFW drafts.",
+      "content_tier": "fast",
+      "nsfw": false,
+      "template": "flux-schnell-base"
+    },
+    {
+      "id": "z-image-turbo-q4",
+      "name": "Z-Image Turbo (Q4)",
+      "description": "Fastest previews — 4-bit Z-Image Turbo via mflux.",
+      "content_tier": "fast",
+      "nsfw": false,
+      "template": "z-image-turbo-q4"
+    },
+    {
+      "id": "z-image-turbo-q8",
+      "name": "Z-Image Turbo (Q8)",
+      "description": "Balanced speed/quality Z-Image Turbo previews.",
+      "content_tier": "fast",
+      "nsfw": false,
+      "template": "z-image-turbo-q8"
+    },
+    {
+      "id": "z-image-technically-color",
+      "name": "Z-Image Technically Color",
+      "description": "Z-Image Turbo + Technically Color LoRA for punchy grading.",
+      "content_tier": "general",
+      "nsfw": false,
+      "template": "z-image-lora",
+      "lora_huggingface_repo": "renderartist/Technically-Color-Z-Image-Turbo",
+      "lora_filename": "Technically_Color_Z_Image_Turbo_v1_renderartist_2000.safetensors",
+      "lora_local_subdir": "loras/z-image-technically-color",
+      "lora_scale": 0.8,
+      "hf_downloads": 0
+    }
+  ]
+}

@@ -16,6 +16,24 @@ class VideoRunnerError(Exception):
     pass
 
 
+def _format_subprocess_error(stderr: str, stdout: str) -> str:
+    """Prefer the last Python exception line over HF hub warnings."""
+    combined = "\n".join(part for part in (stderr, stdout) if part).strip()
+    if not combined:
+        return ""
+
+    lines = [line.strip() for line in combined.splitlines() if line.strip()]
+    for line in reversed(lines):
+        if line.startswith(("ValueError:", "RuntimeError:", "KeyError:", "ModuleNotFoundError:")):
+            return line
+        if line.startswith("Traceback"):
+            break
+
+    noise_prefixes = ("Warning: You are sending unauthenticated requests",)
+    useful = [line for line in lines if not any(line.startswith(p) for p in noise_prefixes)]
+    return useful[-1] if useful else combined
+
+
 def _mlx_python() -> str:
     settings = get_settings()
     return (
@@ -30,7 +48,7 @@ def _mlx_python() -> str:
 def _resolve_ltx_model_repo(model: dict[str, Any]) -> str:
     local_name = model.get("local_dir") or "ltx2-distilled"
     local = models_dir() / local_name
-    if local.is_dir() and (local / "config.json").is_file():
+    if local.is_dir() and list(local.rglob("*.safetensors")):
         return str(local)
     return str(model.get("model_repo", "prince-canuma/LTX-2-distilled"))
 
@@ -45,6 +63,15 @@ def _lightning_lora_paths() -> tuple[Optional[Path], Optional[Path]]:
     return None, None
 
 
+def motion_strength_to_guide_scale(motion_strength: Optional[float]) -> Optional[str]:
+    """Map UI motion_strength (0–1) to Wan guide-scale (~0.5–2.0)."""
+    if motion_strength is None:
+        return None
+    clamped = max(0.0, min(1.0, float(motion_strength)))
+    value = 0.5 + clamped * 1.5
+    return f"{value:.2f}"
+
+
 def build_wan_command(
     *,
     model: dict[str, Any],
@@ -53,6 +80,7 @@ def build_wan_command(
     image_path: Optional[Path] = None,
     negative_prompt: str = "",
     seed: Optional[int] = None,
+    motion_strength: Optional[float] = None,
 ) -> list[str]:
     model_dir = resolve_video_model_dir(model)
     python = _mlx_python()
@@ -60,7 +88,7 @@ def build_wan_command(
     cmd = [
         python,
         "-m",
-        "mlx_video.wan_2.generate",
+        "mlx_video.models.wan_2.generate",
         "--model-dir",
         str(model_dir),
         "--prompt",
@@ -74,7 +102,7 @@ def build_wan_command(
         "--steps",
         str(model.get("steps", 4)),
         "--guide-scale",
-        str(model.get("guide_scale", "1")),
+        motion_strength_to_guide_scale(motion_strength) or str(model.get("guide_scale", "1")),
         "--output-path",
         str(output_path),
     ]
@@ -118,7 +146,7 @@ def build_ltx_command(
     cmd = [
         python,
         "-m",
-        "mlx_video.ltx_2.generate",
+        "mlx_video.models.ltx_2.generate",
         "--prompt",
         prompt,
         "--width",
@@ -129,7 +157,7 @@ def build_ltx_command(
         str(model.get("num_frames", 97)),
         "--fps",
         str(model.get("fps", 24)),
-        "--output",
+        "--output-path",
         str(output_path),
         "--model-repo",
         _resolve_ltx_model_repo(model),
@@ -149,6 +177,7 @@ def run_video_generation(
     image_path: Optional[Path] = None,
     negative_prompt: str = "",
     seed: Optional[int] = None,
+    motion_strength: Optional[float] = None,
 ) -> Path:
     settings = get_settings()
     out_dir = job_output_dir(job_id)
@@ -170,11 +199,15 @@ def run_video_generation(
             image_path=image_path,
             negative_prompt=negative_prompt,
             seed=seed,
+            motion_strength=motion_strength,
         )
 
     env = os.environ.copy()
     if settings.hf_home:
         env["HF_HOME"] = settings.hf_home
+    if settings.hf_token:
+        env["HF_TOKEN"] = settings.hf_token
+        env["HUGGING_FACE_HUB_TOKEN"] = settings.hf_token
     env["PYTHONUNBUFFERED"] = "1"
     if settings.mlx_python:
         mlx_bin = str(Path(settings.mlx_python).parent)
@@ -195,7 +228,7 @@ def run_video_generation(
     if result.returncode != 0:
         stderr = (result.stderr or "").strip()
         stdout = (result.stdout or "").strip()
-        detail = stderr or stdout or f"exit code {result.returncode}"
+        detail = _format_subprocess_error(stderr, stdout) or f"exit code {result.returncode}"
         raise VideoRunnerError(detail)
 
     if not output_path.exists():

@@ -15,6 +15,7 @@ interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'>
 
 interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElement>, BaseInputProps {
   rows?: number;
+  variant?: 'default' | 'studio';
 }
 
 const sizeStyles = {
@@ -106,6 +107,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
       helperText,
       fullWidth = false,
       rows = 4,
+      variant = 'default',
       className = '',
       id,
       ...props
@@ -113,13 +115,18 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
     ref
   ) => {
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+    const isStudio = variant === 'studio';
 
     return (
       <div className={fullWidth ? 'w-full' : ''}>
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1"
+            className={
+              isStudio
+                ? 'studio-label mb-1.5'
+                : 'block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1'
+            }
           >
             {label}
           </label>
@@ -129,11 +136,10 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           id={inputId}
           rows={rows}
           className={`
-            ${baseInputStyles}
-            ${error ? errorBorderStyles : normalBorderStyles}
-            px-4 py-2 text-base resize-none
+            ${isStudio ? 'studio-input resize-none text-base' : `${baseInputStyles} ${error ? errorBorderStyles : normalBorderStyles} px-4 py-2 text-base resize-none`}
             ${fullWidth ? 'w-full' : ''}
-            ${props.disabled ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : ''}
+            ${!isStudio && props.disabled ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : ''}
+            ${isStudio && props.disabled ? 'cursor-not-allowed opacity-50' : ''}
             ${className}
           `.trim()}
           aria-invalid={error ? 'true' : 'false'}
@@ -146,7 +152,10 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           </p>
         )}
         {helperText && !error && (
-          <p id={`${inputId}-helper`} className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p
+            id={`${inputId}-helper`}
+            className={`mt-1.5 text-xs ${isStudio ? 'text-zinc-500' : 'text-sm text-gray-500 dark:text-gray-400'}`}
+          >
             {helperText}
           </p>
         )}

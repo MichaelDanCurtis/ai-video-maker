@@ -27,19 +27,38 @@ export interface ErrorResponse {
   details?: Record<string, unknown>;
 }
 
+export type ContentTier = 'all' | 'nsfw' | 'general' | 'fast';
+
 export interface ModelInfo {
   id: string;
   name: string;
   provider: string;
   description?: string;
   capabilities: string[];
+  nsfw?: boolean;
   uncensored?: boolean;
+  content_tier?: ContentTier | null;
   ready?: boolean;
 }
 
 export interface ModelListResponse {
   models: ModelInfo[];
   media_type: MediaType;
+}
+
+export interface ModelDownloadRequest {
+  model_id: string;
+  kind: MediaType;
+}
+
+export interface ModelDownloadResponse {
+  download_id: string;
+  model_id: string;
+  kind: MediaType;
+  status: 'pending' | 'downloading' | 'converting' | 'completed' | 'failed';
+  message: string;
+  error?: string;
+  ready?: boolean;
 }
 
 // =============================================================================
@@ -53,12 +72,21 @@ export interface PhotoGenerationRequest {
   quality?: 'standard' | 'hd';
   style?: string;
   n?: number;
+  /** Explicit mode: NSFW LoRA + anti-clothing negative prompt */
+  nsfw_mode?: boolean;
+  negative_prompt?: string;
+  seed?: number;
+  seed_walk?: number;
+  steps?: number;
+  guidance?: number;
+  lora_scale?: number;
 }
 
 export interface PhotoGenerationResponse {
   job_id: string;
   status: JobStatus;
   image_url?: string;
+  image_urls?: string[];
   image_base64?: string;
   model: string;
   prompt: string;
@@ -92,12 +120,53 @@ export interface PhotoEditResponse {
 // Video Generation Types
 // =============================================================================
 
+export interface VideoContinueRequest {
+  source_job_id: string;
+  motion_prompt?: string;
+  model?: string;
+  duration?: number;
+  fps?: number;
+  aspect_ratio?: string;
+  segment_index?: number;
+  shot_index?: number;
+  nsfw_mode?: boolean;
+  negative_prompt?: string;
+  motion_negative_prompt?: string;
+  seed?: number;
+  motion_strength?: number;
+}
+
+export interface VideoContinueResponse {
+  job_id: string;
+  status: JobStatus;
+  source_job_id: string;
+  seed_frame_url?: string;
+  video_url?: string;
+  thumbnail_url?: string;
+  model: string;
+  prompt: string;
+  duration: number;
+  created_at: string;
+  progress?: number;
+  error?: string;
+}
+
+export type VideoCapability = 'text-to-video' | 'image-to-video' | 'all';
+
 export interface VideoGenerationRequest {
   prompt: string;
   model?: string;
   duration?: number;
   fps?: number;
   resolution?: string;
+  aspect_ratio?: string;
+  /** Keyframe model from image catalog (text-to-video appearance / NSFW) */
+  image_model?: string;
+  nsfw_mode?: boolean;
+  seed?: number;
+  negative_prompt?: string;
+  motion_negative_prompt?: string;
+  pure_t2v?: boolean;
 }
 
 export interface VideoGenerationResponse {
@@ -149,6 +218,38 @@ export interface PhotoToVideoRequest {
   motion_strength?: number;
   loop?: boolean;
   fps?: number;
+  aspect_ratio?: string;
+  seed?: number;
+  negative_prompt?: string;
+  motion_negative_prompt?: string;
+  source_image_job_id?: string;
+  refine_prompt?: string;
+  refine_strength?: number;
+}
+
+export interface StillAnimateRequest {
+  source_image_job_id: string;
+  motion_prompt?: string;
+  model?: string;
+  duration?: number;
+  fps?: number;
+  aspect_ratio?: string;
+  motion_strength?: number;
+  seed?: number;
+  negative_prompt?: string;
+  motion_negative_prompt?: string;
+  refine_prompt?: string;
+  refine_strength?: number;
+}
+
+export interface ImageRefineRequest {
+  source_image_job_id: string;
+  refine_prompt: string;
+  strength?: number;
+  model?: string;
+  seed?: number;
+  negative_prompt?: string;
+  nsfw_mode?: boolean;
 }
 
 export interface PhotoToVideoResponse {
@@ -188,4 +289,22 @@ export class ApiException extends Error {
     super(message);
     this.name = 'ApiException';
   }
+}
+
+// =============================================================================
+// Project Assembly Types
+// =============================================================================
+
+export interface ConcatProjectRequest {
+  clip_urls: string[];
+  project_name?: string;
+}
+
+export interface ConcatProjectResponse {
+  job_id: string;
+  video_url: string;
+  clip_count: number;
+  duration: number;
+  project_name?: string;
+  created_at: string;
 }

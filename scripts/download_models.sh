@@ -96,6 +96,38 @@ download_hf_optional "filipstrand/FLUX.1-Krea-dev-mflux-4bit" "${WEIGHTS}/flux-k
 download_hf_optional "dhairyashil/FLUX.1-schnell-mflux-4bit" "${WEIGHTS}/flux-schnell-q4"
 download_hf_optional "dhairyashil/FLUX.1-dev-mflux-4bit" "${WEIGHTS}/flux-dev-q4"
 
+# Optional base / fast image bundles from catalog
+download_hf_optional "dhairyashil/FLUX.1-dev-mflux-8bit" "${WEIGHTS}/flux-dev-q8"
+download_hf_optional "filipstrand/Z-Image-Turbo-mflux-4bit" "${WEIGHTS}/z-image-turbo-q4"
+download_hf_optional "filipstrand/Z-Image-Turbo-mflux-4bit" "${WEIGHTS}/z-image-turbo-q8"
+
+download_lora() {
+  local repo="$1"
+  local file="$2"
+  local dest="$3"
+  echo "==> LoRA ${repo} (${file})"
+  "${HF_CLI}" download "${repo}" \
+    --include "${file}" \
+    --local-dir "${dest}" || true
+}
+
+# Curated catalog LoRAs (see backend/mlx_models/image_catalog.json)
+download_lora "Heartsync/Flux-NSFW-uncensored" "lora.safetensors" "${WEIGHTS}/loras/flux-nsfw-heartsync"
+download_lora "smith297/nsfw_flux_lora_v1" "nsfw_flux_lora_v1.safetensors" "${WEIGHTS}/loras/flux-nsfw-smith297"
+download_lora "Muapi/focus-on-sexual-innuendo-nsfw-lora-redcraft-il-pony-flux.1" \
+  "focus-on-sexual-innuendo-nsfw-lora-redcraft-il-pony-flux.1.safetensors" \
+  "${WEIGHTS}/loras/flux-nsfw-muapi-innuendo"
+download_lora "davidjaymes/depr_flux-lora-fast-training_miasweet-v1_nsfw" \
+  "flux-lora-fast-training_miasweet-v1_nsfw.safetensors" \
+  "${WEIGHTS}/loras/flux-nsfw-miasweet"
+download_lora "PetruZetta/enh_nsfw_flux_lora_v2" "lora.safetensors" "${WEIGHTS}/loras/flux-nsfw-petruzetta"
+download_lora "kittysec/nsfw_flux_lora" "nsfw_flux_lora_v1.safetensors" "${WEIGHTS}/loras/flux-nsfw-kittysec"
+download_lora "voxvici/flux-lora-nsfw" "Flux_Improved_Female_Nudity_v2.safetensors" "${WEIGHTS}/loras/flux-nsfw-voxvici"
+download_lora "nadam54321/nsfw-flux-lora" "ben.safetensors" "${WEIGHTS}/loras/flux-nsfw-nadam"
+download_lora "renderartist/Technically-Color-Z-Image-Turbo" \
+  "Technically_Color_Z_Image_Turbo_v1_renderartist_2000.safetensors" \
+  "${WEIGHTS}/loras/z-image-technically-color"
+
 # --- Quick video: LTX-2 distilled (pre-converted MLX on HuggingFace) ---
 download_hf_optional "prince-canuma/LTX-2-distilled" "${WEIGHTS}/ltx2-distilled"
 
@@ -127,15 +159,17 @@ cat <<EOF
 
 Done.
 
-Image (default uncensored): ${WEIGHTS}/flux-krea-uncensored-q4
-Image (fast):               ${WEIGHTS}/flux-schnell-q4
-Image (quality):            ${WEIGHTS}/flux-dev-q4
+Image catalog:              15 curated models in backend/mlx_models/image_catalog.json
+Image (default NSFW):       ${WEIGHTS}/flux-dev-q4 + ${WEIGHTS}/loras/flux-nsfw-heartsync
+Image (all NSFW LoRAs):     ${WEIGHTS}/loras/flux-nsfw-*
+Image (Krea aesthetic):     ${WEIGHTS}/flux-krea-uncensored-q4
+Image (fast):               ${WEIGHTS}/flux-schnell-q4, z-image-turbo-*
 Video (quick):              ${WEIGHTS}/ltx2-distilled
 Video (Wan I2V MLX):        ${WEIGHTS}/wan22_i2v_mlx
 Video (Wan T2V MLX):        ${WEIGHTS}/wan22_t2v_mlx
 Lightning LoRA:             ${WEIGHTS}/lightning_lora
 
-Default image model: flux-krea-uncensored-q4
+Default image model: flux-dev-nsfw-lora
 Default video model: wan22-i2v-lightning (or ltx2-distilled if Wan not ready)
 EOF
 

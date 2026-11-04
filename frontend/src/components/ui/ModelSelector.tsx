@@ -2,13 +2,17 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 
+export type ContentTier = 'all' | 'nsfw' | 'general' | 'fast';
+
 export interface ModelOption {
   id: string;
   name: string;
   description?: string;
   provider?: string;
   capabilities?: string[];
+  nsfw?: boolean;
   uncensored?: boolean;
+  content_tier?: ContentTier;
   ready?: boolean;
 }
 
@@ -22,6 +26,10 @@ interface ModelSelectorProps {
   disabled?: boolean;
   isLoading?: boolean;
   fullWidth?: boolean;
+  downloadMessage?: string | null;
+  isDownloading?: boolean;
+  onDownload?: () => void;
+  variant?: 'default' | 'studio';
 }
 
 export function ModelSelector({
@@ -34,7 +42,12 @@ export function ModelSelector({
   disabled = false,
   isLoading = false,
   fullWidth = false,
+  downloadMessage = null,
+  isDownloading = false,
+  onDownload,
+  variant = 'default',
 }: ModelSelectorProps) {
+  const isStudio = variant === 'studio';
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -81,7 +94,13 @@ export function ModelSelector({
   return (
     <div className={fullWidth ? 'w-full' : ''} ref={containerRef}>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+        <label
+          className={
+            isStudio
+              ? 'studio-label mb-1.5'
+              : 'block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1'
+          }
+        >
           {label}
         </label>
       )}
@@ -98,14 +117,12 @@ export function ModelSelector({
           }}
           disabled={disabled || isLoading}
           className={`
-            relative w-full cursor-pointer rounded-lg border py-2 pl-3 pr-10 text-left
-            bg-white dark:bg-gray-900
-            transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500
-            ${error
-              ? 'border-red-500'
-              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+            relative w-full cursor-pointer rounded-xl border py-2.5 pl-3 pr-10 text-left transition-colors focus:outline-none focus:ring-2
+            ${isStudio
+              ? `bg-black/40 text-zinc-100 focus:ring-rose-500/30 ${error ? 'border-red-500' : 'border-rose-500/25 hover:border-rose-500/40'}`
+              : `bg-white dark:bg-gray-900 focus:ring-blue-500 ${error ? 'border-red-500' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'}`
             }
-            ${disabled || isLoading ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : ''}
+            ${disabled || isLoading ? 'cursor-not-allowed opacity-60' : ''}
           `}
           aria-haspopup="listbox"
           aria-expanded={isOpen}
@@ -131,18 +148,18 @@ export function ModelSelector({
               Loading models...
             </span>
           ) : selectedModel ? (
-            <span className="flex items-center">
-              <span className="block truncate text-gray-900 dark:text-white">
+            <span className="flex items-center gap-2">
+              <span className={`block truncate ${isStudio ? 'text-zinc-100' : 'text-gray-900 dark:text-white'}`}>
                 {selectedModel.name}
               </span>
-              {selectedModel.provider && (
-                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                  ({selectedModel.provider})
+              {selectedModel.nsfw && isStudio && (
+                <span className="shrink-0 rounded bg-rose-900/60 px-1.5 py-0.5 text-[10px] font-bold uppercase text-rose-300">
+                  18+
                 </span>
               )}
             </span>
           ) : (
-            <span className="block truncate text-gray-400 dark:text-gray-500">
+            <span className={`block truncate ${isStudio ? 'text-zinc-500' : 'text-gray-400 dark:text-gray-500'}`}>
               {placeholder}
             </span>
           )}
@@ -162,8 +179,14 @@ export function ModelSelector({
         </button>
 
         {isOpen && (
-          <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg">
-            <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+          <div
+            className={`absolute z-10 mt-1 w-full rounded-xl border shadow-xl ${
+              isStudio
+                ? 'border-rose-500/25 bg-[#120a10] shadow-rose-950/40'
+                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+            }`}
+          >
+            <div className={`p-2 border-b ${isStudio ? 'border-rose-500/15' : 'border-gray-200 dark:border-gray-700'}`}>
               <input
                 ref={inputRef}
                 type="text"
@@ -171,10 +194,14 @@ export function ModelSelector({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Search models..."
-                className="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600
+                className={
+                  isStudio
+                    ? 'studio-input text-sm'
+                    : `w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600
                   bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white
                   placeholder-gray-400 dark:placeholder-gray-500
-                  focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  focus:outline-none focus:ring-2 focus:ring-blue-500`
+                }
               />
             </div>
             <ul
@@ -192,8 +219,10 @@ export function ModelSelector({
                     onClick={() => handleSelect(model.id)}
                     className={`
                       relative cursor-pointer select-none py-2 px-4
-                      hover:bg-gray-100 dark:hover:bg-gray-700
-                      ${model.id === value ? 'bg-blue-50 dark:bg-blue-900/30' : ''}
+                      ${isStudio
+                        ? `hover:bg-rose-950/40 ${model.id === value ? 'bg-rose-950/60' : ''}`
+                        : `hover:bg-gray-100 dark:hover:bg-gray-700 ${model.id === value ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`
+                      }
                     `}
                     role="option"
                     aria-selected={model.id === value}
@@ -210,14 +239,14 @@ export function ModelSelector({
                           {model.name}
                         </span>
                         <div className="ml-2 flex items-center gap-1">
-                          {model.uncensored && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200">
-                              uncensored
+                          {model.nsfw && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200">
+                              NSFW
                             </span>
                           )}
                           {model.ready === false && (
                             <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                              downloading
+                              not downloaded
                             </span>
                           )}
                           {model.provider && (
@@ -264,58 +293,94 @@ export function ModelSelector({
         )}
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+      {selectedModel?.ready === false && onDownload && (
+        <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+          <p className="text-xs text-amber-100/90">
+            {downloadMessage || 'Weights not on disk yet. Download from Hugging Face to run locally.'}
+          </p>
+          <button
+            type="button"
+            onClick={onDownload}
+            disabled={disabled || isDownloading}
+            className="mt-2 inline-flex items-center gap-2 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-medium text-black transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isDownloading ? (
+              <>
+                <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Downloading…
+              </>
+            ) : (
+              'Download from Hugging Face'
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-// Fallback until /api/v1/models loads from the MLX registry
+/** Tier filter chips — pair with useImageModels(tier). */
+export const IMAGE_TIER_OPTIONS: { id: ContentTier; label: string }[] = [
+  { id: 'nsfw', label: 'Explicit' },
+  { id: 'all', label: 'All 15' },
+  { id: 'general', label: 'SFW' },
+  { id: 'fast', label: 'Draft' },
+];
+
+// Fallback until /api/v1/models loads from the MLX catalog
 export const DEFAULT_IMAGE_MODELS: ModelOption[] = [
   {
-    id: 'flux-krea-uncensored-q4',
-    name: 'Flux Krea Dev Uncensored (Q4)',
-    description: 'Krea-tuned Flux — default uncensored local MLX model',
+    id: 'flux-dev-nsfw-lora',
+    name: 'Flux Dev NSFW — Heartsync',
+    description: 'Default explicit model — Flux Dev Q4 + Heartsync NSFW LoRA',
     provider: 'local-mlx',
-    capabilities: ['text-to-image', 'uncensored'],
-    uncensored: true,
+    capabilities: ['text-to-image', 'nsfw'],
+    nsfw: true,
+    content_tier: 'nsfw',
   },
   {
     id: 'flux-dev-q4',
     name: 'Flux Dev (Q4)',
-    description: 'Full quality Flux Dev mflux 4-bit',
+    description: 'Standard Flux Dev — general-purpose',
     provider: 'local-mlx',
-    capabilities: ['text-to-image', 'uncensored'],
-    uncensored: true,
+    capabilities: ['text-to-image'],
+    content_tier: 'general',
   },
   {
     id: 'flux-schnell-q4',
     name: 'Flux Schnell Fast (Q4)',
-    description: 'Fast distilled Flux for drafts',
+    description: '4-step distilled Flux for quick drafts',
     provider: 'local-mlx',
     capabilities: ['text-to-image'],
-  },
-  {
-    id: 'z-image-turbo-q8',
-    name: 'Z-Image Turbo (Fast)',
-    description: 'Quick previews before full Flux renders',
-    provider: 'local-mlx',
-    capabilities: ['text-to-image'],
+    content_tier: 'fast',
   },
 ];
 
 export const DEFAULT_VIDEO_MODELS: ModelOption[] = [
   {
-    id: 'wan22-i2v-lightning',
-    name: 'Wan 2.2 I2V Lightning',
-    description: 'Image-to-video, 4-step Lightning LoRA',
+    id: 'ltx2-distilled',
+    name: 'LTX-2 Distilled',
+    description: 'Fast local text-to-video on Apple Silicon',
     provider: 'local-mlx',
-    capabilities: ['image-to-video', 'uncensored'],
+    capabilities: ['text-to-video'],
+    ready: true,
   },
   {
     id: 'wan22-t2v-lightning',
     name: 'Wan 2.2 T2V Lightning',
     description: 'Text-to-video via Flux frame + Wan animation',
     provider: 'local-mlx',
-    capabilities: ['text-to-video', 'uncensored'],
+    capabilities: ['text-to-video'],
+  },
+  {
+    id: 'wan22-i2v-lightning',
+    name: 'Wan 2.2 I2V Lightning',
+    description: 'Image-to-video, 4-step Lightning LoRA',
+    provider: 'local-mlx',
+    capabilities: ['image-to-video'],
   },
 ];
 

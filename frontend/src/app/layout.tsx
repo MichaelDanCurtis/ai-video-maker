@@ -1,12 +1,22 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { DM_Sans, Syne } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-dm-sans',
+});
+
+const syne = Syne({
+  subsets: ['latin'],
+  variable: '--font-syne',
+  weight: ['600', '700', '800'],
+});
 
 export const metadata: Metadata = {
-  title: 'AI Video Maker',
-  description: 'AI-powered multimedia creation and editing application',
+  title: 'After Dark — Uncensored AI Studio',
+  description:
+    'Local NSFW image and video generation on Apple Silicon. Flux LoRAs, explicit keyframes, cinematic motion — all on your Mac.',
 };
 
 export default function RootLayout({
@@ -15,11 +25,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <main className="min-h-screen">
-          {children}
-        </main>
+    <html lang="en" className="dark">
+      <body
+        className={`${dmSans.variable} ${syne.variable} font-sans bg-[#060508] text-zinc-100 antialiased`}
+        style={{ fontFamily: 'var(--font-dm-sans), system-ui, sans-serif' }}
+      >
+        {children}
       </body>
     </html>
   );
