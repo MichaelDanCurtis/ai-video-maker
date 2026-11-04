@@ -6,26 +6,47 @@
 import {
   ApiConfig,
   ApiException,
+  ContentTier,
   HealthResponse,
+  VideoCapability,
   ModelListResponse,
+  ModelDownloadRequest,
+  ModelDownloadResponse,
   PhotoGenerationRequest,
   PhotoGenerationResponse,
   PhotoEditRequest,
   PhotoEditResponse,
+  VideoContinueRequest,
+  VideoContinueResponse,
   VideoGenerationRequest,
   VideoGenerationResponse,
   VideoEditRequest,
   VideoEditResponse,
   PhotoToVideoRequest,
   PhotoToVideoResponse,
+  StillAnimateRequest,
+  ImageRefineRequest,
+  ConcatProjectRequest,
+  ConcatProjectResponse,
 } from './types';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
+function resolveApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  // Match the page host so 127.0.0.1:3100 talks to 127.0.0.1:8000 (CORS-safe).
+  if (typeof window !== 'undefined' && window.location.hostname) {
+    return `http://${window.location.hostname}:8000`;
+  }
+  return 'http://localhost:8000';
+}
+
 const DEFAULT_CONFIG: ApiConfig = {
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  baseUrl: resolveApiBaseUrl(),
   timeout: 120000, // 2 minutes for AI operations
 };
 
@@ -213,15 +234,35 @@ export async function checkHealth(): Promise<HealthResponse> {
 /**
  * Get available image generation models.
  */
-export async function getImageModels(): Promise<ModelListResponse> {
-  return apiRequest<ModelListResponse>('GET', '/api/v1/models/image');
+export async function getImageModels(tier: ContentTier = 'all'): Promise<ModelListResponse> {
+  const query = tier !== 'all' ? `?tier=${encodeURIComponent(tier)}` : '';
+  return apiRequest<ModelListResponse>('GET', `/api/v1/models/image${query}`);
 }
 
 /**
  * Get available video generation models.
  */
-export async function getVideoModels(): Promise<ModelListResponse> {
-  return apiRequest<ModelListResponse>('GET', '/api/v1/models/video');
+export async function getVideoModels(capability: VideoCapability = 'all'): Promise<ModelListResponse> {
+  const query = capability !== 'all' ? `?capability=${encodeURIComponent(capability)}` : '';
+  return apiRequest<ModelListResponse>('GET', `/api/v1/models/video${query}`);
+}
+
+/**
+ * Download model weights from Hugging Face (local MLX).
+ */
+export async function downloadModel(
+  request: ModelDownloadRequest
+): Promise<ModelDownloadResponse> {
+  return apiRequest<ModelDownloadResponse>('POST', '/api/v1/models/download', request);
+}
+
+/**
+ * Poll Hugging Face download job status.
+ */
+export async function getModelDownloadStatus(
+  downloadId: string
+): Promise<ModelDownloadResponse> {
+  return apiRequest<ModelDownloadResponse>('GET', `/api/v1/models/download/${downloadId}`);
 }
 
 // =============================================================================
@@ -242,6 +283,24 @@ export async function generatePhoto(
  */
 export async function getPhotoJobStatus(jobId: string): Promise<PhotoGenerationResponse> {
   return apiRequest<PhotoGenerationResponse>('GET', `/api/v1/photo/status/${jobId}`);
+}
+
+/**
+ * Animate a completed still image job without re-uploading.
+ */
+export async function animateStill(
+  request: StillAnimateRequest
+): Promise<PhotoToVideoResponse> {
+  return apiRequest<PhotoToVideoResponse>('POST', '/api/v1/photo/animate', request);
+}
+
+/**
+ * Refine a completed still with Flux Redux before animation.
+ */
+export async function refineStill(
+  request: ImageRefineRequest
+): Promise<PhotoGenerationResponse> {
+  return apiRequest<PhotoGenerationResponse>('POST', '/api/v1/photo/refine', request);
 }
 
 // =============================================================================
@@ -291,6 +350,19 @@ export async function getVideoJobStatus(jobId: string): Promise<VideoGenerationR
   return apiRequest<VideoGenerationResponse>('GET', `/api/v1/video/status/${jobId}`);
 }
 
+/**
+ * Continue a completed clip using its last frame as the next shot seed.
+ */
+export async function continueVideo(
+  request: VideoContinueRequest
+): Promise<VideoContinueResponse> {
+  return apiRequest<VideoContinueResponse>('POST', '/api/v1/video/continue', request);
+}
+
+export async function getContinueVideoStatus(jobId: string): Promise<VideoContinueResponse> {
+  return apiRequest<VideoContinueResponse>('GET', `/api/v1/video/continue/status/${jobId}`);
+}
+
 // =============================================================================
 // Video Edit API
 // =============================================================================
@@ -328,7 +400,7 @@ export async function getVideoEditStatus(jobId: string): Promise<VideoEditRespon
  * @param request - Animation parameters
  */
 export async function transformPhotoToVideo(
-  file: File,
+  file: File | null,
   request: PhotoToVideoRequest
 ): Promise<PhotoToVideoResponse> {
   const additionalData: Record<string, string | number | boolean> = {};
@@ -351,6 +423,52 @@ export async function transformPhotoToVideo(
   if (request.fps !== undefined) {
     additionalData.fps = request.fps;
   }
+  if (request.aspect_ratio) {
+    additionalData.aspect_ratio = request.aspect_ratio;
+  }
+  if (request.seed !== undefined) {
+    additionalData.seed = request.seed;
+  }
+  if (request.negative_prompt) {
+    additionalData.negative_prompt = request.negative_prompt;
+  }
+  if (request.motion_negative_prompt) {
+    additionalData.motion_negative_prompt = request.motion_negative_prompt;
+  }
+  if (request.source_image_job_id) {
+    additionalData.source_image_job_id = request.source_image_job_id;
+  }
+  if (request.refine_prompt) {
+    additionalData.refine_prompt = request.refine_prompt;
+  }
+  if (request.refine_strength !== undefined) {
+    additionalData.refine_strength = request.refine_strength;
+  }
+
+  if (!file && request.source_image_job_id) {
+    return apiRequest<PhotoToVideoResponse>(
+      'POST',
+      '/api/v1/photo/animate',
+      {
+        source_image_job_id: request.source_image_job_id,
+        motion_prompt: request.motion_prompt,
+        model: request.model,
+        duration: request.duration,
+        fps: request.fps,
+        aspect_ratio: request.aspect_ratio,
+        motion_strength: request.motion_strength,
+        seed: request.seed,
+        negative_prompt: request.negative_prompt,
+        motion_negative_prompt: request.motion_negative_prompt,
+        refine_prompt: request.refine_prompt,
+        refine_strength: request.refine_strength,
+      } satisfies StillAnimateRequest
+    );
+  }
+
+  if (!file) {
+    throw new ApiException(400, 'A photo file or source_image_job_id is required');
+  }
 
   return apiUpload<PhotoToVideoResponse>(
     'POST',
@@ -365,6 +483,19 @@ export async function transformPhotoToVideo(
  */
 export async function getPhotoToVideoStatus(jobId: string): Promise<PhotoToVideoResponse> {
   return apiRequest<PhotoToVideoResponse>('GET', `/api/v1/transform/photo-to-video/status/${jobId}`);
+}
+
+// =============================================================================
+// Project Assembly API
+// =============================================================================
+
+/**
+ * Stitch ordered clips into one downloadable video.
+ */
+export async function concatProject(
+  request: ConcatProjectRequest
+): Promise<ConcatProjectResponse> {
+  return apiRequest<ConcatProjectResponse>('POST', '/api/v1/project/concat', request, 300000);
 }
 
 // =============================================================================
@@ -486,6 +617,8 @@ export const api = {
   // Photo
   generatePhoto,
   getPhotoJobStatus,
+  animateStill,
+  refineStill,
 
   // Photo Edit
   editPhoto,
@@ -494,6 +627,8 @@ export const api = {
   // Video
   generateVideo,
   getVideoJobStatus,
+  continueVideo,
+  getContinueVideoStatus,
 
   // Video Edit
   editVideo,
@@ -502,6 +637,9 @@ export const api = {
   // Photo-to-Video
   transformPhotoToVideo,
   getPhotoToVideoStatus,
+
+  // Project
+  concatProject,
 
   // Utilities
   pollJobStatus,

@@ -35,16 +35,24 @@ class Settings(BaseSettings):
     mlx_models_dir: str = "backend/mlx_models/weights"
     data_dir: str = "data"
     hf_home: str = ""
+    hf_token: str = ""
     media_url_prefix: str = "/media"
     mlx_worker_poll_seconds: float = 2.0
     mlx_job_timeout_seconds: int = 3600
 
     # Default AI Models (registry IDs when using mlx, OpenRouter slugs when cloud)
-    default_image_model: str = "flux-krea-uncensored-q4"
+    default_image_model: str = "flux-dev-nsfw-lora"
     default_video_model: str = "wan22-i2v-lightning"
+    # When true, image jobs use NSFW LoRA models, anti-clothing negative prompts, and prompt expansion.
+    default_nsfw_mode: bool = True
 
     # CORS Configuration
-    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
+    cors_origins: Annotated[list[str], NoDecode] = [
+        "http://localhost:3000",
+        "http://localhost:3100",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3100",
+    ]
 
     # File Upload Configuration
     max_upload_size_mb: int = 50

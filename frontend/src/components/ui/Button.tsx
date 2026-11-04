@@ -2,7 +2,7 @@
 
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'velvet';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -14,9 +14,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 disabled:bg-blue-400',
+    'bg-gradient-to-r from-rose-600 to-rose-700 text-white shadow-lg shadow-rose-950/50 hover:from-rose-500 hover:to-rose-600 focus:ring-rose-500 disabled:from-rose-900 disabled:to-rose-950 disabled:opacity-70',
+  velvet:
+    'bg-gradient-to-r from-rose-600 via-rose-700 to-fuchsia-800 text-white shadow-lg shadow-rose-900/60 hover:from-rose-500 hover:via-rose-600 hover:to-fuchsia-700 focus:ring-rose-400 disabled:opacity-60',
   secondary:
-    'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500 disabled:bg-gray-400',
+    'bg-zinc-800 text-zinc-100 hover:bg-zinc-700 focus:ring-zinc-500 disabled:bg-zinc-900 disabled:text-zinc-500',
   outline:
     'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:ring-gray-500',
   ghost:

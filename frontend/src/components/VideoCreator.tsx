@@ -61,7 +61,7 @@ export function VideoCreator({ onGenerate }: VideoCreatorProps) {
             maxAttempts: 800,
             onProgress: (status) => {
               if (status.progress && status.progress < 50) {
-                setProgressMessage('Generating keyframe image (uncensored Flux)...');
+                setProgressMessage('Generating keyframe image (Flux NSFW LoRA)...');
               } else if (status.status === 'processing') {
                 setProgressMessage('Animating with Wan 2.2 Lightning...');
               }
@@ -114,7 +114,7 @@ export function VideoCreator({ onGenerate }: VideoCreatorProps) {
       <CardHeader>
         <CardTitle>Create Video</CardTitle>
         <CardDescription>
-          Text-to-video via local MLX: uncensored Flux frame + Wan 2.2 animation
+          Text-to-video via local MLX: NSFW Flux keyframe + Wan 2.2 animation
         </CardDescription>
       </CardHeader>
 

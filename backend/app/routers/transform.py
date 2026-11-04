@@ -357,13 +357,26 @@ async def edit_photo(
     },
 )
 async def photo_to_video(
-    file: UploadFile = File(..., description="Image file to transform into video"),
+    file: Optional[UploadFile] = File(default=None, description="Image file to transform into video"),
     motion_prompt: Optional[str] = Form(default=None, max_length=1000, description="Description of desired motion/animation"),
     model: Optional[str] = Form(default=None, description="AI model to use for transformation"),
     duration: int = Form(default=3, ge=1, le=10, description="Output video duration in seconds (1-10)"),
     motion_strength: float = Form(default=0.5, ge=0.0, le=1.0, description="Amount of motion to apply (0.0-1.0)"),
     loop: bool = Form(default=False, description="Whether the video should loop seamlessly"),
     fps: int = Form(default=24, ge=12, le=30, description="Output frames per second (12-30)"),
+    aspect_ratio: str = Form(
+        default="auto",
+        description="Aspect preset (9:16, 16:9, 1:1, 4:5, 3:4) or auto to match photo",
+    ),
+    seed: Optional[int] = Form(default=None, description="RNG seed for motion generation"),
+    negative_prompt: Optional[str] = Form(default=None, description="Negative prompt for refine step"),
+    motion_negative_prompt: Optional[str] = Form(default=None, description="Negative prompt for motion engine"),
+    source_image_job_id: Optional[str] = Form(
+        default=None,
+        description="Completed image job id (use instead of file upload)",
+    ),
+    refine_prompt: Optional[str] = Form(default=None, description="Optional refine prompt before animation"),
+    refine_strength: float = Form(default=0.0, ge=0.0, le=1.0, description="Redux refine strength"),
 ) -> PhotoToVideoResponse:
     """
     Transform a static photo into an animated video.
@@ -394,17 +407,29 @@ async def photo_to_video(
     settings = get_settings()
     job_id = _generate_job_id("p2v")
 
-    # Validate the uploaded file
-    _validate_image_file(file)
-
-    # Read and validate file size
-    file_content = await _read_and_validate_file_size(file)
-
     model_to_use = resolve_video_model_id(model)
 
     if use_mlx():
         job_id = f"job_{uuid.uuid4().hex[:12]}"
-        upload_path = save_upload_for_job(job_id, file.filename or "input.png", file_content)
+        filename = file.filename if file else None
+
+        if source_image_job_id:
+            from app.services.mlx.helpers import resolve_completed_image_path
+
+            source = get_job_or_404(source_image_job_id)
+            image_path = resolve_completed_image_path(source)
+            file_content = image_path.read_bytes()
+            filename = filename or f"still_{source_image_job_id}.png"
+        else:
+            if not file:
+                raise HTTPException(
+                    status_code=400,
+                    detail={"error": "missing_input", "message": "Upload a file or provide source_image_job_id"},
+                )
+            _validate_image_file(file)
+            file_content = await _read_and_validate_file_size(file)
+
+        upload_path = save_upload_for_job(job_id, filename or "input.png", file_content)
         prompt_text = motion_prompt or "Subtle natural motion and cinematic movement"
         job = get_job_store().create(
             kind=JobKind.PHOTO_TO_VIDEO,
@@ -416,7 +441,14 @@ async def photo_to_video(
                 "motion_strength": motion_strength,
                 "loop": loop,
                 "fps": fps,
-                "original_filename": file.filename,
+                "aspect_ratio": aspect_ratio,
+                "original_filename": filename,
+                "seed": seed,
+                "negative_prompt": negative_prompt,
+                "motion_negative_prompt": motion_negative_prompt,
+                "source_image_job_id": source_image_job_id,
+                "refine_prompt": refine_prompt,
+                "refine_strength": refine_strength,
             },
             job_id=job_id,
         )
@@ -424,8 +456,16 @@ async def photo_to_video(
         return photo_to_video_response_from_job(
             job,
             duration=duration,
-            filename=file.filename,
+            filename=filename,
         )
+
+    if not file:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "missing_input", "message": "File upload required for OpenRouter path"},
+        )
+    _validate_image_file(file)
+    file_content = await _read_and_validate_file_size(file)
 
     # Check if photo-to-video transformation is available
     if not PHOTO_TO_VIDEO_AVAILABLE:

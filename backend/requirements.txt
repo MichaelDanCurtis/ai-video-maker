@@ -12,5 +12,8 @@ openrouter>=0.1.1
 # Async support
 httpx>=0.26.0
 
+# Local MLX model downloads
+huggingface_hub>=0.26.0
+
 # Development
 python-dotenv>=1.0.0

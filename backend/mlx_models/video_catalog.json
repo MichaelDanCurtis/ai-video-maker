@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "curated_at": "2026-06-11",
+  "notes": "Motion engines only (~3–50GB each). Text-to-video on this Mac is two steps: Flux keyframe (image_catalog.json) then Wan/LTX animation. Photo-to-video animates your upload as-is.",
+  "templates": {
+    "wan-i2v": {
+      "engine": "mlx-video-wan-i2v",
+      "steps": 4,
+      "guide_scale": "1",
+      "width": 480,
+      "height": 704,
+      "num_frames": 41,
+      "fps": 24,
+      "lightning_lora": true
+    },
+    "wan-t2v": {
+      "engine": "mlx-video-wan-t2v",
+      "steps": 4,
+      "guide_scale": "1",
+      "width": 480,
+      "height": 704,
+      "num_frames": 41,
+      "fps": 24,
+      "lightning_lora": true,
+      "paired_i2v_model_id": "wan22-i2v-lightning"
+    },
+    "ltx-distilled": {
+      "engine": "mlx-video-ltx2",
+      "pipeline": "distilled",
+      "width": 768,
+      "height": 512,
+      "num_frames": 97,
+      "fps": 24
+    }
+  },
+  "entries": [
+    {
+      "id": "wan22-i2v-lightning",
+      "name": "Wan 2.2 I2V Lightning",
+      "description": "Animates a keyframe or uploaded photo. NSFW follows the source image.",
+      "content_tier": "motion",
+      "capabilities": ["image-to-video"],
+      "template": "wan-i2v",
+      "model_dir_name": "wan22_i2v_mlx",
+      "pytorch_repo": "Wan-AI/Wan2.2-I2V-A14B",
+      "download_hint": "~50GB PyTorch + MLX convert"
+    },
+    {
+      "id": "wan22-t2v-lightning",
+      "name": "Wan 2.2 Text → Video",
+      "description": "Builds a Flux keyframe from your prompt, then Wan animates it. Pick the keyframe model below.",
+      "content_tier": "text-to-video",
+      "capabilities": ["text-to-video"],
+      "template": "wan-t2v",
+      "model_dir_name": "wan22_t2v_mlx",
+      "pytorch_repo": "Wan-AI/Wan2.2-T2V-A14B",
+      "default_image_model_id": "flux-dev-nsfw-lora",
+      "download_hint": "~50GB PyTorch + MLX convert"
+    },
+    {
+      "id": "ltx2-distilled",
+      "name": "LTX-2 Distilled (fast draft)",
+      "description": "Quick motion previews. Text mode still renders a Flux keyframe first, then animates.",
+      "content_tier": "fast",
+      "capabilities": ["text-to-video", "image-to-video"],
+      "template": "ltx-distilled",
+      "model_repo": "prince-canuma/LTX-2-distilled",
+      "local_dir": "ltx2-distilled",
+      "default_image_model_id": "flux-dev-nsfw-lora",
+      "download_hint": "Smaller download — good for drafts"
+    }
+  ]
+}

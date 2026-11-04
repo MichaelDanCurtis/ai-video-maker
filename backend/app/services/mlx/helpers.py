@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
+
+from fastapi import HTTPException
 
 from app.config import get_settings
 from app.models.schemas import JobStatus
@@ -39,14 +42,37 @@ def job_status(job: Optional[GenerationJob]) -> JobStatus:
 def photo_response_from_job(job: GenerationJob):
     from app.models.schemas import PhotoGenerationResponse
 
+    image_urls = job.metadata.get("result_urls")
     return PhotoGenerationResponse(
         job_id=job.id,
         status=job_status(job),
         image_url=job.result_url,
+        image_urls=image_urls if image_urls else None,
         model=job.model_id,
         prompt=job.prompt,
         created_at=datetime.fromisoformat(job.created_at),
         error=job.error,
+    )
+
+
+def resolve_completed_image_path(job: GenerationJob) -> Path:
+    """Return on-disk path for a completed image job."""
+    if job.state != JobState.COMPLETED:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "job_not_ready",
+                "message": "Source image job must be completed.",
+            },
+        )
+    if job.result_path and Path(job.result_path).is_file():
+        return Path(job.result_path)
+    raise HTTPException(
+        status_code=400,
+        detail={
+            "error": "missing_image",
+            "message": "Source image file is missing on disk.",
+        },
     )
 
 
